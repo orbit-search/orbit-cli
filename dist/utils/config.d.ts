@@ -24,5 +24,6 @@ export declare function getSocialApiConfig(config: AppConfig): {
     socialApiAppVersion: string;
     socialApiKey: string;
     serviceUserId: string;
+    userApiKey?: string;
 };
 //# sourceMappingURL=config.d.ts.map

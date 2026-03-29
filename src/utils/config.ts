@@ -32,25 +32,20 @@ export function loadConfig(): AppConfig {
     ...envConfig,
   } as AppConfig;
 
-  // Validate required fields
-  const required: Array<keyof AppConfig> = [
-    'deepSearchApiKey',
-    'socialApiAppId',
-    'socialApiKey',
-    'serviceUserId',
-  ];
+  // If user has an API key (from `orbit login`), that's sufficient for auth
+  // Internal service keys are only needed if no user API key is present
+  if (!config.apiKey) {
+    const required: Array<keyof AppConfig> = [
+      'socialApiAppId',
+    ];
 
-  const missing = required.filter((key) => !config[key as keyof AppConfig]);
-  if (missing.length > 0) {
-    const envVars = missing.map((k) => {
-      const envKey = k.replace(/([A-Z])/g, '_$1').toUpperCase();
-      return `ORBIT_${envKey}`;
-    });
-    throw new Error(
-      `Missing required configuration: ${missing.join(', ')}\n` +
-        `Set via environment variables (${envVars.join(', ')}) ` +
-        `or in ${CONFIG_FILE}`
-    );
+    const missing = required.filter((key) => !config[key as keyof AppConfig]);
+    if (missing.length > 0) {
+      throw new Error(
+        `Not authenticated. Run \`orbit login\` to authenticate,\n` +
+          `or set API configuration in ${CONFIG_FILE}`
+      );
+    }
   }
 
   return config;
@@ -122,6 +117,7 @@ export function getSocialApiConfig(config: AppConfig): {
   socialApiAppVersion: string;
   socialApiKey: string;
   serviceUserId: string;
+  userApiKey?: string;
 } {
   return {
     socialApiHost: config.socialApiHost,
@@ -129,5 +125,6 @@ export function getSocialApiConfig(config: AppConfig): {
     socialApiAppVersion: config.socialApiAppVersion,
     socialApiKey: config.socialApiKey,
     serviceUserId: config.serviceUserId,
+    userApiKey: config.apiKey,
   };
 }

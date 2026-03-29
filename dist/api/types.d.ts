@@ -225,6 +225,7 @@ export interface CombinedProfile {
     rawSocial?: SocialProfile;
 }
 export interface AppConfig extends DeepSearchConfig, SocialApiConfig {
+    apiKey?: string;
 }
 export type OutputFormat = 'text' | 'json' | 'brief';
 //# sourceMappingURL=types.d.ts.map

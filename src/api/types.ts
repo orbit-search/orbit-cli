@@ -256,6 +256,8 @@ export interface CombinedProfile {
   rawSocial?: SocialProfile;
 }
 
-export interface AppConfig extends DeepSearchConfig, SocialApiConfig {}
+export interface AppConfig extends DeepSearchConfig, SocialApiConfig {
+  apiKey?: string; // User API key from `orbit login` (sk_orb_...)
+}
 
 export type OutputFormat = 'text' | 'json' | 'brief';

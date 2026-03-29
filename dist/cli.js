@@ -4,6 +4,7 @@ import { searchCommand } from './commands/search.js';
 import { profileCommand } from './commands/profile.js';
 import { deepSearchCommand } from './commands/deep-search.js';
 import { smartSearchCommand } from './commands/smart-search.js';
+import { loginCommand } from './commands/login.js';
 const program = new Command();
 program
     .name('orbit')
@@ -68,6 +69,65 @@ program
         limit: parseInt(options.limit, 10),
         json: options.json,
     });
+});
+program
+    .command('login')
+    .description('Authenticate with Orbit via browser')
+    .option('-k, --key <key>', 'Set API key directly (skip browser flow)')
+    .option('--host <url>', 'Orbit web host (default: https://orbitsearch.com)')
+    .action(async (options) => {
+    await loginCommand({
+        key: options.key,
+        host: options.host,
+    });
+});
+program
+    .command('whoami')
+    .description('Show current authentication status')
+    .action(async () => {
+    const { existsSync, readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { homedir } = await import('node:os');
+    const configFile = join(homedir(), '.orbit-cli', 'config.json');
+    if (!existsSync(configFile)) {
+        console.log('Not authenticated. Run `orbit login` to authenticate.');
+        return;
+    }
+    try {
+        const config = JSON.parse(readFileSync(configFile, 'utf-8'));
+        if (config.apiKey) {
+            console.log(`✓ Authenticated`);
+            console.log(`  Key: ${config.apiKey.slice(0, 12)}...`);
+        }
+        else {
+            console.log('No API key configured. Run `orbit login` to authenticate.');
+        }
+    }
+    catch {
+        console.log('Config file corrupted. Run `orbit login` to re-authenticate.');
+    }
+});
+program
+    .command('logout')
+    .description('Remove saved API key')
+    .action(async () => {
+    const { existsSync, readFileSync, writeFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { homedir } = await import('node:os');
+    const configFile = join(homedir(), '.orbit-cli', 'config.json');
+    if (!existsSync(configFile)) {
+        console.log('Not authenticated.');
+        return;
+    }
+    try {
+        const config = JSON.parse(readFileSync(configFile, 'utf-8'));
+        delete config.apiKey;
+        writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+        console.log('✓ Logged out. API key removed.');
+    }
+    catch {
+        console.log('Error clearing config.');
+    }
 });
 program.parse();
 //# sourceMappingURL=cli.js.map

@@ -5,7 +5,10 @@ export declare class SocialApiClient {
     private appVersion;
     private apiKey;
     private serviceUserId;
-    constructor(config: SocialApiConfig);
+    private userApiKey?;
+    constructor(config: SocialApiConfig & {
+        userApiKey?: string;
+    });
     private getDefaultHeaders;
     private request;
     /**

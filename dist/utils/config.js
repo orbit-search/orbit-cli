@@ -25,22 +25,17 @@ export function loadConfig() {
         ...fileConfig,
         ...envConfig,
     };
-    // Validate required fields
-    const required = [
-        'deepSearchApiKey',
-        'socialApiAppId',
-        'socialApiKey',
-        'serviceUserId',
-    ];
-    const missing = required.filter((key) => !config[key]);
-    if (missing.length > 0) {
-        const envVars = missing.map((k) => {
-            const envKey = k.replace(/([A-Z])/g, '_$1').toUpperCase();
-            return `ORBIT_${envKey}`;
-        });
-        throw new Error(`Missing required configuration: ${missing.join(', ')}\n` +
-            `Set via environment variables (${envVars.join(', ')}) ` +
-            `or in ${CONFIG_FILE}`);
+    // If user has an API key (from `orbit login`), that's sufficient for auth
+    // Internal service keys are only needed if no user API key is present
+    if (!config.apiKey) {
+        const required = [
+            'socialApiAppId',
+        ];
+        const missing = required.filter((key) => !config[key]);
+        if (missing.length > 0) {
+            throw new Error(`Not authenticated. Run \`orbit login\` to authenticate,\n` +
+                `or set API configuration in ${CONFIG_FILE}`);
+        }
     }
     return config;
 }
@@ -102,6 +97,7 @@ export function getSocialApiConfig(config) {
         socialApiAppVersion: config.socialApiAppVersion,
         socialApiKey: config.socialApiKey,
         serviceUserId: config.serviceUserId,
+        userApiKey: config.apiKey,
     };
 }
 //# sourceMappingURL=config.js.map

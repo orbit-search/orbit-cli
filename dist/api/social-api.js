@@ -4,19 +4,26 @@ export class SocialApiClient {
     appVersion;
     apiKey;
     serviceUserId;
+    userApiKey;
     constructor(config) {
         this.host = config.socialApiHost;
-        this.appId = config.socialApiAppId;
-        this.appVersion = config.socialApiAppVersion;
+        this.appId = config.socialApiAppId || '0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d';
+        this.appVersion = config.socialApiAppVersion || '1.0.0';
         this.apiKey = config.socialApiKey;
         this.serviceUserId = config.serviceUserId;
+        this.userApiKey = config.userApiKey;
     }
     getDefaultHeaders() {
-        return {
+        const headers = {
             'Content-Type': 'application/json',
-            'app-id': this.appId,
-            'app-version': this.appVersion,
+            'App-Id': this.appId,
+            'App-Version': this.appVersion,
         };
+        // Use user API key (from `orbit login`) if available
+        if (this.userApiKey) {
+            headers['Authorization'] = `Bearer ${this.userApiKey}`;
+        }
+        return headers;
     }
     async request(endpoint, options = {}) {
         const url = `${this.host}${endpoint}`;
