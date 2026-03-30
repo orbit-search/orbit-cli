@@ -1,7 +1,7 @@
 {
   "name": "orbit-cli",
-  "version": "1.0.0",
-  "description": "CLI tool and MCP server for searching people via Orbit's APIs",
+  "version": "2.0.0",
+  "description": "Orbit CLI — search people from the command line. Thin client for the Orbit MCP server.",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
@@ -9,12 +9,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "node dist/cli.js",
-    "mcp-server": "node dist/mcp-server.js"
+    "dev": "tsc --watch"
   },
   "keywords": ["orbit", "search", "people", "cli", "mcp"],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "commander": "^12.0.0",

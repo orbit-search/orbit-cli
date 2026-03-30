@@ -1,130 +1,70 @@
 /**
- * Configuration management for Orbit CLI
- * Supports env vars and config file at ~/.orbit-cli/config.json
+ * Configuration for the Orbit CLI.
+ * Handles API key storage and MCP server environment setup.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
-import type { AppConfig } from '../api/types.js';
+import { readFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
-const CONFIG_DIR = join(homedir(), '.orbit-cli');
-const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
+const CONFIG_DIR = join(homedir(), ".orbit-cli");
+const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
-// Default configuration values
-const DEFAULT_CONFIG: Partial<AppConfig> = {
-  deepSearchHost: 'https://deep-search.orbitsearch.com',
-  socialApiHost: 'https://api.orbitsearch.com',
-  socialApiAppVersion: '1.0.0',
-};
-
-/**
- * Load configuration from environment variables and/or config file
- * Priority: env vars > config file > defaults
- */
-export function loadConfig(): AppConfig {
-  const fileConfig = loadConfigFile();
-  const envConfig = loadEnvConfig();
-
-  const config: AppConfig = {
-    ...DEFAULT_CONFIG,
-    ...fileConfig,
-    ...envConfig,
-  } as AppConfig;
-
-  // If user has an API key (from `orbit login`), that's sufficient for auth
-  // Internal service keys are only needed if no user API key is present
-  if (!config.apiKey) {
-    const required: Array<keyof AppConfig> = [
-      'socialApiAppId',
-    ];
-
-    const missing = required.filter((key) => !config[key as keyof AppConfig]);
-    if (missing.length > 0) {
-      throw new Error(
-        `Not authenticated. Run \`orbit login\` to authenticate,\n` +
-          `or set API configuration in ${CONFIG_FILE}`
-      );
-    }
-  }
-
-  return config;
+interface CliConfig {
+  apiKey?: string;
+  serverPath?: string;
 }
 
-/**
- * Load configuration from config file
- */
-function loadConfigFile(): Partial<AppConfig> {
-  if (!existsSync(CONFIG_FILE)) {
-    return {};
-  }
+export function loadConfig(): CliConfig {
+  if (!existsSync(CONFIG_FILE)) return {};
 
   try {
-    const content = readFileSync(CONFIG_FILE, 'utf-8');
-    return JSON.parse(content) as Partial<AppConfig>;
-  } catch (error) {
-    console.warn(`Warning: Failed to parse config file ${CONFIG_FILE}:`, error);
+    return JSON.parse(readFileSync(CONFIG_FILE, "utf-8")) as CliConfig;
+  } catch {
     return {};
   }
 }
 
 /**
- * Load configuration from environment variables
- * Maps ORBIT_DEEP_SEARCH_API_KEY -> deepSearchApiKey, etc.
+ * Get the environment variables to pass to the MCP server subprocess.
+ * Loads the chatgpt-app .env for server config, and adds user API key if present.
  */
-function loadEnvConfig(): Partial<AppConfig> {
-  const envMap: Record<string, keyof AppConfig> = {
-    ORBIT_DEEP_SEARCH_API_KEY: 'deepSearchApiKey',
-    ORBIT_DEEP_SEARCH_HOST: 'deepSearchHost',
-    ORBIT_SOCIAL_API_HOST: 'socialApiHost',
-    ORBIT_SOCIAL_API_APP_ID: 'socialApiAppId',
-    ORBIT_SOCIAL_API_APP_VERSION: 'socialApiAppVersion',
-    ORBIT_SOCIAL_API_KEY: 'socialApiKey',
-    ORBIT_SERVICE_USER_ID: 'serviceUserId',
-  };
+export function getServerEnv(): Record<string, string> {
+  const config = loadConfig();
+  const env: Record<string, string> = {};
 
-  const config: Partial<AppConfig> = {};
-
-  for (const [envKey, configKey] of Object.entries(envMap)) {
-    const value = process.env[envKey];
-    if (value) {
-      config[configKey] = value;
+  // Load the chatgpt-app .env if it exists
+  const serverDir = join(
+    process.env.HOME || homedir(),
+    "Projects/work/orbit/orbit-chatgpt-app"
+  );
+  const envFile = join(serverDir, ".env");
+  if (existsSync(envFile)) {
+    const lines = readFileSync(envFile, "utf-8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        env[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1);
+      }
     }
   }
 
-  return config;
+  // Override with user API key if configured
+  if (config.apiKey) {
+    env.ORBIT_API_KEY = config.apiKey;
+  }
+
+  return env;
 }
 
-/**
- * Get just the Deep Search API configuration
- */
-export function getDeepSearchConfig(config: AppConfig): {
-  deepSearchApiKey: string;
-  deepSearchHost: string;
-} {
-  return {
-    deepSearchApiKey: config.deepSearchApiKey,
-    deepSearchHost: config.deepSearchHost,
-  };
+export function getApiKey(): string | undefined {
+  return loadConfig().apiKey;
 }
 
-/**
- * Get just the Social API configuration
- */
-export function getSocialApiConfig(config: AppConfig): {
-  socialApiHost: string;
-  socialApiAppId: string;
-  socialApiAppVersion: string;
-  socialApiKey: string;
-  serviceUserId: string;
-  userApiKey?: string;
-} {
-  return {
-    socialApiHost: config.socialApiHost,
-    socialApiAppId: config.socialApiAppId,
-    socialApiAppVersion: config.socialApiAppVersion,
-    socialApiKey: config.socialApiKey,
-    serviceUserId: config.serviceUserId,
-    userApiKey: config.apiKey,
-  };
+export function getServerPath(): string | undefined {
+  return loadConfig().serverPath;
 }
+
+export { CONFIG_DIR, CONFIG_FILE };

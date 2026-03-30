@@ -1,1 +1,0 @@
-{"version":3,"file":"deep-search.d.ts","sourceRoot":"","sources":["../../src/commands/deep-search.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,iBAAiB;IAChC,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,OAAO,CAAC,EAAE,MAAM,CAAC;IACjB,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB;AAED,wBAAsB,iBAAiB,CAAC,IAAI,EAAE,MAAM,EAAE,OAAO,EAAE,iBAAiB,GAAG,OAAO,CAAC,IAAI,CAAC,CA4C/F"}

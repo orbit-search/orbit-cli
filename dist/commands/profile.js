@@ -1,61 +1,26 @@
-import { DeepSearchClient } from '../api/deep-search.js';
-import { SocialApiClient } from '../api/social-api.js';
-import { loadConfig, getDeepSearchConfig, getSocialApiConfig } from '../utils/config.js';
-import { formatProfile, combineProfiles, formatError } from '../utils/formatter.js';
-export async function profileCommand(id, options) {
+import { OrbitMcpClient } from "../mcp-client.js";
+import { getServerEnv } from "../utils/config.js";
+export async function profileCommand(userId, options) {
+    const client = new OrbitMcpClient(undefined, getServerEnv());
     try {
-        const config = loadConfig();
-        const deepSearchClient = new DeepSearchClient(getDeepSearchConfig(config));
-        const socialClient = new SocialApiClient(getSocialApiConfig(config));
-        let combinedProfile = null;
-        // First, try as orbit_id (deep search profile)
-        console.error(`Trying orbit ID: ${id}...`);
-        let fullProfile = null;
-        let socialProfile = null;
-        try {
-            fullProfile = await deepSearchClient.getFullProfile(id);
-        }
-        catch {
-            // Not a valid orbit_id or API error
-        }
-        if (fullProfile) {
-            console.error(`Found orbit profile for ${id}`);
-            if (fullProfile.sendit_id) {
-                try {
-                    socialProfile = await socialClient.getProfileByUserId(fullProfile.sendit_id);
-                }
-                catch {
-                    // Continue without social profile
-                }
-            }
-            combinedProfile = combineProfiles(fullProfile, socialProfile);
+        await client.connect();
+        const result = await client.callTool("get_profile", { userId });
+        if (options.json && result.structured) {
+            console.log(JSON.stringify(result.structured, null, 2));
         }
         else {
-            // Try as sendit_id (social profile UUID)
-            console.error(`Trying social profile ID: ${id}...`);
-            socialProfile = await socialClient.getProfileByUserId(id);
-            if (socialProfile) {
-                combinedProfile = combineProfiles(null, socialProfile);
-            }
+            console.log(result.text);
         }
-        if (!combinedProfile) {
-            console.error(`No profile found for ID ${id}`);
+        if (result.isError) {
             process.exit(1);
         }
-        let format = 'text';
-        if (options.json) {
-            format = 'json';
-        }
-        else if (options.brief) {
-            format = 'brief';
-        }
-        const section = options.sources ? 'sources' : options.section;
-        const output = formatProfile(combinedProfile, format, section);
-        console.log(output);
     }
     catch (error) {
-        console.error(formatError(error));
+        console.error(`Profile fetch failed: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
+    }
+    finally {
+        await client.close();
     }
 }
 //# sourceMappingURL=profile.js.map
