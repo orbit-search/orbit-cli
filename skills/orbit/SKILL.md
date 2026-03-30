@@ -46,37 +46,32 @@ orbit logout         # Remove API key
 - Finding contact info like email/phone (profiles may not have this)
 - Real-time social media posts (Orbit shows profile data, not feeds)
 
-## How It Works
+## Commands
 
-Orbit has two access methods:
+### `orbit search <query>`
 
-### 1. CLI (`orbit` command)
+Search by name. Returns top matches with summaries.
 
 ```bash
-# Search by name — returns top matches with summaries
 orbit search "Nicholas Dominici"
-
-# Search with JSON output for parsing
 orbit search "Elon Musk" --json
+```
 
-# Get detailed profile by user ID (UUID from search results)
+### `orbit profile <userId>`
+
+Get a detailed profile by user ID (UUID from search results).
+
+```bash
 orbit profile 293ce93b-4104-4cce-b1bb-7d89ddfa3238
-
-# Profile as JSON
 orbit profile 293ce93b-4104-4cce-b1bb-7d89ddfa3238 --json
 ```
 
-### 2. MCP Tools (via mcporter)
+### MCP Tools (via mcporter)
 
 ```bash
-# Search
 mcporter call orbit.search_people query="Jane Smith"
-
-# Get profile
 mcporter call orbit.get_profile userId="<uuid>"
 ```
-
-The MCP server is registered as `orbit` in mcporter config.
 
 ## Output Format
 
@@ -131,34 +126,17 @@ Not every profile has all fields. Coverage depends on the person's public footpr
 
 Orbit works in two modes:
 
-**Anonymous mode** (default): Uses service credentials to search. Works out of the box for basic searches and profile lookups.
+**Anonymous mode** (default): Works out of the box for basic searches and profile lookups.
 
-**Authenticated mode** (`orbit login`): Uses a personal API key. Provides access to the authenticated search endpoint with better results and match reasoning. To authenticate:
+**Authenticated mode** (`orbit login`): Uses a personal API key for better search results and match reasoning.
 
 1. Run `orbit login` — opens browser
 2. Sign in with your phone number (SMS OTP)
 3. API key is automatically created and saved
 4. All subsequent commands use authenticated endpoints
 
-API key is stored in `~/.orbit-cli/config.json`.
-
-## Architecture
-
-The CLI is a thin client. All search logic lives in the **orbit-chatgpt-app MCP server**:
-
-```
-orbit CLI  →  spawns MCP server (stdio)  →  calls Orbit API
-                                              ↓
-                                         api.orbitsearch.com
-```
-
-- MCP server: `~/Projects/work/orbit/orbit-chatgpt-app/dist/stdio.js`
-- Server env: `~/Projects/work/orbit/orbit-chatgpt-app/.env`
-- CLI config: `~/.orbit-cli/config.json`
-
 ## Tips
 
 - **User IDs are UUIDs** — copy them from search results to use with `orbit profile`
 - **Names work best** — "John Smith" finds John Smiths. Natural language queries like "Stanford engineers" may work but depend on the search endpoint
-- **The smart search endpoint may be intermittently unavailable** — if search returns errors, try again later or use `orbit profile` with a known ID
 - **Profiles are pre-generated** — not every person in the world has an Orbit profile. If someone isn't found, they haven't been indexed yet
