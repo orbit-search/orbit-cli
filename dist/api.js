@@ -178,22 +178,32 @@ export function formatProfile(profile) {
         for (const p of profile.passions)
             l.push(`  ${p.name}${p.detail ? `: ${p.detail}` : ""}`);
     }
-    // Personal + Qualities + Worldview
-    const personal = [];
-    for (const p of profile.personalLife)
-        personal.push(p);
-    for (const q of profile.bestQualities)
-        personal.push(q.text);
-    if (profile.worldview?.politics)
-        personal.push(`Politics: ${profile.worldview.politics}`);
-    if (profile.worldview?.religion)
-        personal.push(`Religion: ${profile.worldview.religion}`);
-    if (profile.worldview?.causes)
-        personal.push(`Causes: ${profile.worldview.causes}`);
-    if (personal.length > 0) {
-        l.push("", "PERSONAL");
-        for (const p of personal)
+    // Personal Life (deduped)
+    if (profile.personalLife.length > 0) {
+        const seen = new Set();
+        const deduped = profile.personalLife.filter(p => { const k = p.toLowerCase(); if (seen.has(k))
+            return false; seen.add(k); return true; });
+        l.push("", "PERSONAL LIFE");
+        for (const p of deduped)
             l.push(`  ${p}`);
+    }
+    // Best Qualities
+    if (profile.bestQualities.length > 0) {
+        l.push("", "BEST QUALITIES");
+        l.push(`  ${profile.bestQualities.map(q => q.text).join(", ")}`);
+    }
+    // Worldview
+    const wv = [];
+    if (profile.worldview?.politics)
+        wv.push(`Politics: ${profile.worldview.politics}`);
+    if (profile.worldview?.religion)
+        wv.push(`Religion: ${profile.worldview.religion}`);
+    if (profile.worldview?.causes)
+        wv.push(`Causes: ${profile.worldview.causes}`);
+    if (wv.length > 0) {
+        l.push("", "WORLDVIEW");
+        for (const w of wv)
+            l.push(`  ${w}`);
     }
     // Social
     if (profile.socialLinks.length > 0) {
