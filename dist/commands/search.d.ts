@@ -1,5 +1,4 @@
 export interface SearchOptions {
-    limit?: number;
     json?: boolean;
 }
 export declare function searchCommand(query: string, options: SearchOptions): Promise<void>;

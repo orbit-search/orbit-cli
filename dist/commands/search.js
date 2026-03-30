@@ -1,26 +1,35 @@
-import { OrbitMcpClient } from "../mcp-client.js";
-import { getServerEnv } from "../utils/config.js";
+import { searchPeople, getProfile, formatProfile } from "../api.js";
 export async function searchCommand(query, options) {
-    const client = new OrbitMcpClient(undefined, getServerEnv());
     try {
-        await client.connect();
-        const result = await client.callTool("search_people", { query });
-        if (options.json && result.structured) {
-            console.log(JSON.stringify(result.structured, null, 2));
+        const users = await searchPeople(query);
+        if (users.size === 0) {
+            console.log(`No results found for "${query}".`);
+            return;
+        }
+        const profiles = await Promise.allSettled([...users.entries()].map(async ([userId, user]) => {
+            const profile = await getProfile(userId);
+            return { ...profile, matchReason: user.matchReason ?? null };
+        }));
+        const results = profiles
+            .filter((r) => r.status === "fulfilled")
+            .map((r) => r.value);
+        if (options.json) {
+            console.log(JSON.stringify(results, null, 2));
         }
         else {
-            console.log(result.text);
-        }
-        if (result.isError) {
-            process.exit(1);
+            for (const profile of results) {
+                console.log(formatProfile(profile));
+                if (profile.matchReason) {
+                    console.log(`\n  💡 Match: ${profile.matchReason}`);
+                }
+                console.log("");
+            }
+            console.log(`Found ${results.length} result${results.length === 1 ? "" : "s"} for "${query}".`);
         }
     }
     catch (error) {
         console.error(`Search failed: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
-    }
-    finally {
-        await client.close();
     }
 }
 //# sourceMappingURL=search.js.map

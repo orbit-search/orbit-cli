@@ -1,5 +1,5 @@
-import { OrbitMcpClient } from "../mcp-client.js";
-import { getServerEnv, getApiKey } from "../utils/config.js";
+import { getMyProfile, formatProfile } from "../api.js";
+import { getApiKey } from "../utils/config.js";
 
 export interface MeOptions {
   json?: boolean;
@@ -11,25 +11,16 @@ export async function meCommand(options: MeOptions): Promise<void> {
     process.exit(1);
   }
 
-  const client = new OrbitMcpClient(undefined, getServerEnv());
-
   try {
-    await client.connect();
-    const result = await client.callTool("me");
+    const profile = await getMyProfile();
 
-    if (options.json && result.structured) {
-      console.log(JSON.stringify(result.structured, null, 2));
+    if (options.json) {
+      console.log(JSON.stringify(profile, null, 2));
     } else {
-      console.log(result.text);
-    }
-
-    if (result.isError) {
-      process.exit(1);
+      console.log(formatProfile(profile));
     }
   } catch (error) {
     console.error(`Failed: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
-  } finally {
-    await client.close();
   }
 }
