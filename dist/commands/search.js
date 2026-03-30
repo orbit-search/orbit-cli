@@ -1,30 +1,26 @@
-import { searchPeople, getProfile, formatProfile } from "../api.js";
+import { searchPeople } from "../api.js";
 export async function searchCommand(query, options) {
     try {
-        const users = await searchPeople(query);
-        if (users.size === 0) {
+        const results = await searchPeople(query);
+        if (results.length === 0) {
             console.log(`No results found for "${query}".`);
             return;
         }
-        const profiles = await Promise.allSettled([...users.entries()].map(async ([userId, user]) => {
-            const profile = await getProfile(userId);
-            return { ...profile, matchReason: user.matchReason ?? null };
-        }));
-        const results = profiles
-            .filter((r) => r.status === "fulfilled")
-            .map((r) => r.value);
         if (options.json) {
             console.log(JSON.stringify(results, null, 2));
         }
         else {
-            for (const profile of results) {
-                console.log(formatProfile(profile));
-                if (profile.matchReason) {
-                    console.log(`\n  💡 Match: ${profile.matchReason}`);
-                }
-                console.log("");
+            for (const r of results) {
+                const parts = [r.displayName];
+                if (r.age)
+                    parts.push(`${r.age}`);
+                if (r.city)
+                    parts.push(r.city);
+                console.log(`${parts.join(" | ")}  [${r.userId}]`);
+                if (r.matchReason)
+                    console.log(`  ${r.matchReason}`);
             }
-            console.log(`Found ${results.length} result${results.length === 1 ? "" : "s"} for "${query}".`);
+            console.log(`\n${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`);
         }
     }
     catch (error) {

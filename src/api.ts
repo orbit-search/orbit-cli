@@ -4,7 +4,7 @@
 
 import { loadConfig } from "./utils/config.js";
 import { extractDetailedProfile, parseApiResponse } from "./extractors.js";
-import type { ProfileDetails, SearchUser, SourceLink } from "./types.js";
+import type { ProfileDetails, SearchResult, SearchUser, SourceLink } from "./types.js";
 
 const API_HOST = "https://api.orbitsearch.com";
 const APP_ID = "0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d";
@@ -36,11 +36,12 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   return response.json();
 }
 
-export async function searchPeople(query: string, numResults = 6): Promise<Map<string, SearchUser>> {
+export async function searchPeople(query: string, numResults = 6): Promise<SearchResult[]> {
   const config = loadConfig();
 
+  let rawUsers: RawSearchUser[];
+
   if (config.apiKey) {
-    // Authenticated: use SSE endpoint
     const response = await fetch(`${API_HOST}/v2/social/profiles/searches/smart/sse`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -52,26 +53,33 @@ export async function searchPeople(query: string, numResults = 6): Promise<Map<s
       throw new Error(`Search failed (${response.status}): ${body || response.statusText}`);
     }
 
-    return parseSSEResponse(await response.text());
+    rawUsers = parseSSEResponse(await response.text());
+  } else {
+    const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
+      method: "POST",
+      headers: {
+        ...getBaseHeaders(),
+        "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
+      },
+      body: JSON.stringify({
+        query,
+        userId: "5181db5e-e761-472d-9e0e-98af519bc974",
+        numUsers: numResults,
+        isManualInput: true,
+      }),
+    });
+
+    const res = response as { payload?: { users?: RawSearchUser[] } };
+    rawUsers = res?.payload?.users ?? [];
   }
 
-  // Anonymous: use internal endpoint with service key
-  const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
-    method: "POST",
-    headers: {
-      ...getBaseHeaders(),
-      "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
-    },
-    body: JSON.stringify({
-      query,
-      userId: "5181db5e-e761-472d-9e0e-98af519bc974",
-      numUsers: numResults,
-      isManualInput: true,
-    }),
-  });
-
-  const res = response as { payload?: { users?: { userId: string; matchReason?: string | { reason?: string } }[] } };
-  return parseUsers(res?.payload?.users ?? []);
+  return rawUsers.filter(u => u.userId).map(u => ({
+    userId: u.userId,
+    displayName: u.displayName ?? "Unknown",
+    age: typeof u.age === "number" ? u.age : null,
+    city: u.city ?? null,
+    matchReason: parseMatchReason(u.matchReason),
+  }));
 }
 
 export async function getProfile(userId: string): Promise<ProfileDetails> {
@@ -215,8 +223,22 @@ export function formatProfile(profile: ProfileDetails): string {
 
 // ── SSE parsing ──
 
-function parseSSEResponse(text: string): Map<string, SearchUser> {
-  let latestUsers: { userId: string; matchReason?: string | { reason?: string } }[] = [];
+type RawSearchUser = {
+  userId: string;
+  displayName?: string;
+  age?: number;
+  city?: string;
+  matchReason?: string | { reason?: string | null };
+};
+
+function parseMatchReason(mr: string | { reason?: string | null } | undefined): string | null {
+  if (!mr) return null;
+  if (typeof mr === "string") return mr;
+  return mr.reason ?? null;
+}
+
+function parseSSEResponse(text: string): RawSearchUser[] {
+  let latestUsers: RawSearchUser[] = [];
   const lines = text.split("\n");
   let currentEvent = "";
   let dataBuffer = "";
@@ -233,10 +255,9 @@ function parseSSEResponse(text: string): Map<string, SearchUser> {
         try {
           if (currentEvent === "initial") {
             const parsed = JSON.parse(dataBuffer);
-            // Handle both {users:[...]} and {status,payload:{users:[...]}} formats
             latestUsers = parsed?.payload?.users ?? parsed?.users ?? [];
           } else if (currentEvent === "update" && latestUsers.length > 0) {
-            const update = JSON.parse(dataBuffer) as { userId: string; matchReason?: string | { reason?: string } };
+            const update = JSON.parse(dataBuffer) as RawSearchUser;
             const existing = latestUsers.find((u) => u.userId === update.userId);
             if (existing) existing.matchReason = update.matchReason;
           }
@@ -247,20 +268,5 @@ function parseSSEResponse(text: string): Map<string, SearchUser> {
     }
   }
 
-  return parseUsers(latestUsers);
-}
-
-function parseUsers(rawUsers: { userId: string; matchReason?: string | { reason?: string } }[]): Map<string, SearchUser> {
-  const users = new Map<string, SearchUser>();
-  for (const entry of rawUsers) {
-    if (!entry.userId) continue;
-    const reason =
-      typeof entry.matchReason === "object" && entry.matchReason !== null
-        ? (entry.matchReason as { reason?: string }).reason
-        : typeof entry.matchReason === "string"
-          ? entry.matchReason
-          : undefined;
-    users.set(entry.userId, { userId: entry.userId, matchReason: reason });
-  }
-  return users;
+  return latestUsers;
 }

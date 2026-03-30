@@ -31,8 +31,8 @@ async function fetchJson(url, init) {
 }
 export async function searchPeople(query, numResults = 6) {
     const config = loadConfig();
+    let rawUsers;
     if (config.apiKey) {
-        // Authenticated: use SSE endpoint
         const response = await fetch(`${API_HOST}/v2/social/profiles/searches/smart/sse`, {
             method: "POST",
             headers: getAuthHeaders(),
@@ -42,24 +42,32 @@ export async function searchPeople(query, numResults = 6) {
             const body = await response.text().catch(() => "");
             throw new Error(`Search failed (${response.status}): ${body || response.statusText}`);
         }
-        return parseSSEResponse(await response.text());
+        rawUsers = parseSSEResponse(await response.text());
     }
-    // Anonymous: use internal endpoint with service key
-    const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
-        method: "POST",
-        headers: {
-            ...getBaseHeaders(),
-            "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
-        },
-        body: JSON.stringify({
-            query,
-            userId: "5181db5e-e761-472d-9e0e-98af519bc974",
-            numUsers: numResults,
-            isManualInput: true,
-        }),
-    });
-    const res = response;
-    return parseUsers(res?.payload?.users ?? []);
+    else {
+        const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
+            method: "POST",
+            headers: {
+                ...getBaseHeaders(),
+                "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
+            },
+            body: JSON.stringify({
+                query,
+                userId: "5181db5e-e761-472d-9e0e-98af519bc974",
+                numUsers: numResults,
+                isManualInput: true,
+            }),
+        });
+        const res = response;
+        rawUsers = res?.payload?.users ?? [];
+    }
+    return rawUsers.filter(u => u.userId).map(u => ({
+        userId: u.userId,
+        displayName: u.displayName ?? "Unknown",
+        age: typeof u.age === "number" ? u.age : null,
+        city: u.city ?? null,
+        matchReason: parseMatchReason(u.matchReason),
+    }));
 }
 export async function getProfile(userId) {
     // Profile endpoint uses different auth — don't send API key in Authorization header
@@ -197,7 +205,13 @@ export function formatProfile(profile) {
     }
     return l.join("\n");
 }
-// ── SSE parsing ──
+function parseMatchReason(mr) {
+    if (!mr)
+        return null;
+    if (typeof mr === "string")
+        return mr;
+    return mr.reason ?? null;
+}
 function parseSSEResponse(text) {
     let latestUsers = [];
     const lines = text.split("\n");
@@ -217,7 +231,6 @@ function parseSSEResponse(text) {
                 try {
                     if (currentEvent === "initial") {
                         const parsed = JSON.parse(dataBuffer);
-                        // Handle both {users:[...]} and {status,payload:{users:[...]}} formats
                         latestUsers = parsed?.payload?.users ?? parsed?.users ?? [];
                     }
                     else if (currentEvent === "update" && latestUsers.length > 0) {
@@ -233,20 +246,6 @@ function parseSSEResponse(text) {
             dataBuffer = "";
         }
     }
-    return parseUsers(latestUsers);
-}
-function parseUsers(rawUsers) {
-    const users = new Map();
-    for (const entry of rawUsers) {
-        if (!entry.userId)
-            continue;
-        const reason = typeof entry.matchReason === "object" && entry.matchReason !== null
-            ? entry.matchReason.reason
-            : typeof entry.matchReason === "string"
-                ? entry.matchReason
-                : undefined;
-        users.set(entry.userId, { userId: entry.userId, matchReason: reason });
-    }
-    return users;
+    return latestUsers;
 }
 //# sourceMappingURL=api.js.map

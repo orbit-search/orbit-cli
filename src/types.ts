@@ -146,6 +146,14 @@ export type SearchUser = {
   matchReason?: string;
 };
 
+export type SearchResult = {
+  userId: string;
+  displayName: string;
+  age: number | null;
+  city: string | null;
+  matchReason: string | null;
+};
+
 // ── Extracted profile types ─────────────────────────────────────
 
 export type BioSectionItem = {

@@ -170,6 +170,13 @@ export type SearchUser = {
     userId: string;
     matchReason?: string;
 };
+export type SearchResult = {
+    userId: string;
+    displayName: string;
+    age: number | null;
+    city: string | null;
+    matchReason: string | null;
+};
 export type BioSectionItem = {
     text: string;
     years?: string;
