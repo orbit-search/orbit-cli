@@ -104,23 +104,17 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   return getProfile(userId);
 }
 
-function fmtSources(sources: SourceLink[]): string[] {
-  if (sources.length === 0) return [];
-  // Deduplicate by hostname, keep first URL per domain
+function srcLine(sources: SourceLink[]): string | null {
+  if (sources.length === 0) return null;
   const seen = new Set<string>();
-  const deduped: SourceLink[] = [];
+  const urls: string[] = [];
   for (const s of sources) {
     try {
       const host = new URL(s.url).hostname.replace(/^www\./, "");
-      if (!seen.has(host)) {
-        seen.add(host);
-        deduped.push(s);
-      }
-    } catch {
-      deduped.push(s);
-    }
+      if (!seen.has(host)) { seen.add(host); urls.push(s.url); }
+    } catch { urls.push(s.url); }
   }
-  return [`  Sources: ${deduped.map(s => s.url).join(" , ")}`];
+  return `  src: ${urls.join(" ")}`;
 }
 
 export function formatProfile(profile: ProfileDetails): string {
@@ -134,88 +128,78 @@ export function formatProfile(profile: ProfileDetails): string {
   l.push(hdr.join(" | "));
   if (profile.link) l.push(profile.link);
 
-  // Bio
-  if (profile.bio) {
-    l.push("", profile.bio);
-    l.push(...fmtSources(profile.bioSources));
-  }
+  // Bio + sources
+  if (profile.bio) l.push("", profile.bio);
+  const bioSrc = srcLine(profile.bioSources);
+  if (bioSrc) l.push(bioSrc);
 
-  // Skills
-  if (profile.skills.length > 0) l.push("", `Skills: ${profile.skills.join(", ")}`);
-
-  // Locations
-  if (profile.previousLocations.length > 0) {
-    l.push(`Locations: ${profile.previousLocations.join(" > ")}`);
-  }
+  // Basics block — skills + locations on one line each
+  if (profile.skills.length > 0) l.push(`Skills: ${profile.skills.join(", ")}`);
+  if (profile.previousLocations.length > 0) l.push(`Locations: ${profile.previousLocations.join(" > ")}`);
 
   // Work
   if (profile.jobs.length > 0) {
     l.push("", "WORK");
     for (const j of profile.jobs) {
-      let line = `  ${j.text}`;
-      if (j.title) line += `, ${j.title}`;
-      if (j.years) line += ` (${j.years})`;
-      l.push(line);
-      if (j.description) l.push(`    ${j.description.slice(0, 150)}${j.description.length > 150 ? "..." : ""}`);
+      const parts = [j.text];
+      if (j.title) parts[0] += `, ${j.title}`;
+      if (j.years) parts.push(j.years);
+      l.push(`  ${parts.join(" | ")}`);
+      if (j.description) l.push(`    ${j.description.slice(0, 120)}${j.description.length > 120 ? "..." : ""}`);
     }
-    l.push(...fmtSources(profile.jobSources));
+    const ws = srcLine(profile.jobSources); if (ws) l.push(ws);
   }
 
   // Education
   if (profile.education.length > 0) {
     l.push("", "EDUCATION");
-    for (const e of profile.education) l.push(`  ${e.text}${e.years ? ` (${e.years})` : ""}`);
-    l.push(...fmtSources(profile.educationSources));
+    for (const e of profile.education) l.push(`  ${e.text}${e.years ? ` | ${e.years}` : ""}`);
+    const es = srcLine(profile.educationSources); if (es) l.push(es);
   }
 
   // Accomplishments
   if (profile.accomplishments.length > 0) {
     l.push("", "ACCOMPLISHMENTS");
     for (const a of profile.accomplishments) l.push(`  ${a.text}`);
-    l.push(...fmtSources(profile.accomplishmentSources));
+    const as2 = srcLine(profile.accomplishmentSources); if (as2) l.push(as2);
   }
 
   // Controversies
   if (profile.controversies.length > 0) {
     l.push("", "CONTROVERSIES");
     for (const c of profile.controversies) l.push(`  ${c.text}`);
-    l.push(...fmtSources(profile.controversySources));
+    const cs = srcLine(profile.controversySources); if (cs) l.push(cs);
   }
 
   // Passions
   if (profile.passions.length > 0) {
     l.push("", "PASSIONS");
-    for (const p of profile.passions) {
-      l.push(`  ${p.name}${p.detail ? ` — ${p.detail}` : ""}`);
-    }
+    for (const p of profile.passions) l.push(`  ${p.name}${p.detail ? `: ${p.detail}` : ""}`);
   }
 
-  // Personal
-  const personal = [
-    ...profile.personalLife,
-    ...profile.bestQualities.map(q => q.text),
-  ].filter(Boolean);
-  if (personal.length > 0 || profile.worldview) {
+  // Personal + Qualities + Worldview
+  const personal: string[] = [];
+  for (const p of profile.personalLife) personal.push(p);
+  for (const q of profile.bestQualities) personal.push(q.text);
+  if (profile.worldview?.politics) personal.push(`Politics: ${profile.worldview.politics}`);
+  if (profile.worldview?.religion) personal.push(`Religion: ${profile.worldview.religion}`);
+  if (profile.worldview?.causes) personal.push(`Causes: ${profile.worldview.causes}`);
+  if (personal.length > 0) {
     l.push("", "PERSONAL");
     for (const p of personal) l.push(`  ${p}`);
-    if (profile.worldview) {
-      if (profile.worldview.politics) l.push(`  Politics: ${profile.worldview.politics}`);
-      if (profile.worldview.religion) l.push(`  Religion: ${profile.worldview.religion}`);
-      if (profile.worldview.causes) l.push(`  Causes: ${profile.worldview.causes}`);
-    }
   }
 
   // Social
   if (profile.socialLinks.length > 0) {
     l.push("", "SOCIAL");
-    for (const s of profile.socialLinks) l.push(`  ${s.media}: ${s.handle}`);
+    l.push(`  ${profile.socialLinks.map(s => `${s.media}: ${s.handle}`).join(" | ")}`);
   }
 
   // Connections
   if (profile.orbitFirstDegree.length > 0) {
-    const names = profile.orbitFirstDegree.slice(0, 15).map(c => c.fullName).join(", ");
-    const more = profile.orbitFirstDegree.length > 15 ? ` +${profile.orbitFirstDegree.length - 15} more` : "";
-    l.push("", `CONNECTIONS (${profile.orbitFirstDegree.length})`, `  ${names}${more}`);
+    const n = profile.orbitFirstDegree.length;
+    const names = profile.orbitFirstDegree.slice(0, 10).map(c => c.fullName).join(", ");
+    l.push("", `CONNECTIONS (${n}): ${names}${n > 10 ? ` +${n - 10} more` : ""}`);
   }
 
   return l.join("\n");
