@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { searchCommand } from "./commands/search.js";
 import { profileCommand } from "./commands/profile.js";
+import { lookupCommand } from "./commands/lookup.js";
 import { meCommand } from "./commands/me.js";
 import { loginCommand } from "./commands/login.js";
 import { loadConfig } from "./utils/config.js";
@@ -38,6 +39,16 @@ program
   .option("-b, --brief", "Short summary (name, bio, work, social)")
   .action(async (userId: string, options: { json?: boolean; brief?: boolean }) => {
     await profileCommand(userId, { json: options.json, brief: options.brief });
+  });
+
+program
+  .command("lookup")
+  .description("Search and show full profile for top result")
+  .argument("<query>", "Search query")
+  .option("-j, --json", "Output structured JSON")
+  .option("-b, --brief", "Short summary")
+  .action(async (query: string, options: { json?: boolean; brief?: boolean }) => {
+    await lookupCommand(query, { json: options.json, brief: options.brief });
   });
 
 program

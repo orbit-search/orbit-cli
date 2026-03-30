@@ -1,0 +1,1 @@
+{"version":3,"file":"lookup.d.ts","sourceRoot":"","sources":["../../src/commands/lookup.ts"],"names":[],"mappings":"AAEA,MAAM,WAAW,aAAa;IAC5B,IAAI,CAAC,EAAE,OAAO,CAAC;IACf,KAAK,CAAC,EAAE,OAAO,CAAC;CACjB;AAED,wBAAsB,aAAa,CAAC,KAAK,EAAE,MAAM,EAAE,OAAO,EAAE,aAAa,GAAG,OAAO,CAAC,IAAI,CAAC,CAuBxF"}
