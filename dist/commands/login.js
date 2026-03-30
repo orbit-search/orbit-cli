@@ -4,11 +4,11 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { exec as execCb } from "node:child_process";
-import { createInterface } from "node:readline";
+import * as p from "@clack/prompts";
 const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 const DEFAULT_HOST = "https://orbitsearch.com";
-const CALLBACK_TIMEOUT_MS = 300_000; // 5 minutes
+const CALLBACK_TIMEOUT_MS = 300_000;
 function saveApiKey(apiKey) {
     if (!existsSync(CONFIG_DIR)) {
         mkdirSync(CONFIG_DIR, { recursive: true });
@@ -41,34 +41,28 @@ function findOpenPort() {
         srv.on("error", reject);
     });
 }
-function prompt(question) {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    return new Promise((resolve) => {
-        rl.question(question, (answer) => {
-            rl.close();
-            resolve(answer.trim());
-        });
-    });
-}
 async function loginWithKey() {
-    const key = await prompt("\n  Paste your API key: ");
-    if (!key) {
-        console.error("\n  ✗ No key provided.");
-        process.exit(1);
-    }
-    if (!key.startsWith("sk_orb_")) {
-        console.error("\n  ✗ Invalid key format. Orbit API keys start with sk_orb_");
-        process.exit(1);
+    const key = await p.text({
+        message: "Paste your API key",
+        placeholder: "sk_orb_...",
+        validate(value) {
+            if (!value)
+                return "API key is required";
+            if (!value.startsWith("sk_orb_"))
+                return "Invalid format — Orbit API keys start with sk_orb_";
+        },
+    });
+    if (p.isCancel(key)) {
+        p.cancel("Login cancelled.");
+        process.exit(0);
     }
     saveApiKey(key);
-    console.log("\n  ✓ API key saved.");
-    console.log(`  Key: ${key.slice(0, 12)}...`);
-    console.log("\n  You can now use `orbit search` and other commands.\n");
+    p.outro(`Authenticated — ${key.slice(0, 12)}...`);
 }
 async function loginWithBrowser(host) {
-    console.log("\n  Opening browser for authentication...\n");
     const port = await findOpenPort();
     const state = randomBytes(16).toString("hex");
+    const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
     let callbackReceived = false;
     const server = createServer((req, res) => {
         const url = new URL(req.url || "/", `http://localhost:${port}`);
@@ -83,44 +77,31 @@ async function loginWithBrowser(host) {
                 res.end();
                 return;
             }
-            if (!key || !returnedState) {
+            if (!key || returnedState !== state || !key.startsWith("sk_orb_")) {
                 res.writeHead(400, { "Content-Type": "text/plain" });
-                res.end("Missing key or state");
-                return;
-            }
-            if (returnedState !== state) {
-                res.writeHead(403, { "Content-Type": "text/plain" });
-                res.end("State mismatch");
-                return;
-            }
-            if (!key.startsWith("sk_orb_")) {
-                res.writeHead(400, { "Content-Type": "text/plain" });
-                res.end("Invalid key format");
+                res.end("Invalid callback");
                 return;
             }
             callbackReceived = true;
             saveApiKey(key);
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
-            console.log("  ✓ Authentication successful!");
-            console.log(`  API key saved to ~/.orbit-cli/config.json`);
-            console.log(`  Key: ${key.slice(0, 12)}...`);
-            console.log("\n  You can now use `orbit search` and other commands.\n");
+            spinner.stop(`Authenticated — ${key.slice(0, 12)}...`);
+            p.note(`Key saved to ~/.orbit-cli/config.json\nRun \`orbit search\` to get started.`, "Ready");
             setTimeout(() => {
                 server.close();
                 process.exit(0);
-            }, 500);
+            }, 300);
         }
         else {
             res.writeHead(404);
-            res.end("Not Found");
+            res.end();
         }
     });
+    const spinner = p.spinner();
     server.listen(port, "127.0.0.1", () => {
-        const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
-        console.log(`  If the browser doesn't open, visit:\n`);
-        console.log(`  ${authUrl}\n`);
-        console.log(`  Waiting for authentication...`);
+        p.note(authUrl, "If the browser doesn't open, visit");
+        spinner.start("Waiting for browser authentication...");
         const platform = process.platform;
         const cmd = platform === "darwin" ? "open" :
             platform === "win32" ? "start" :
@@ -129,8 +110,8 @@ async function loginWithBrowser(host) {
     });
     setTimeout(() => {
         if (!callbackReceived) {
-            console.error("\n  ✗ Authentication timed out after 5 minutes.");
-            console.error("  Run `orbit login` to try again.\n");
+            spinner.stop("Authentication timed out.");
+            p.cancel("Run `orbit login` to try again.");
             server.close();
             process.exit(1);
         }
@@ -140,20 +121,27 @@ export async function loginCommand(options) {
     // Non-interactive: direct key input via flag
     if (options.key) {
         if (!options.key.startsWith("sk_orb_")) {
-            console.error("Error: Invalid API key format. Keys should start with sk_orb_");
+            p.cancel("Invalid API key format. Keys should start with sk_orb_");
             process.exit(1);
         }
         saveApiKey(options.key);
-        console.log("✓ API key saved to ~/.orbit-cli/config.json");
+        p.outro(`Authenticated — ${options.key.slice(0, 12)}...`);
         return;
     }
     const host = options.host || DEFAULT_HOST;
-    console.log("\n  🔐 Orbit Authentication\n");
-    console.log("  How would you like to authenticate?\n");
-    console.log("  1. Login with browser (recommended)");
-    console.log("  2. Paste an API key\n");
-    const choice = await prompt("  Choose (1 or 2): ");
-    if (choice === "2" || choice.toLowerCase() === "key" || choice.toLowerCase() === "paste") {
+    p.intro("🔐 Orbit");
+    const method = await p.select({
+        message: "How would you like to authenticate?",
+        options: [
+            { value: "browser", label: "Login with browser", hint: "recommended" },
+            { value: "key", label: "Paste an API key" },
+        ],
+    });
+    if (p.isCancel(method)) {
+        p.cancel("Login cancelled.");
+        process.exit(0);
+    }
+    if (method === "key") {
         await loginWithKey();
     }
     else {
