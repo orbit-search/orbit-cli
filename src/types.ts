@@ -164,18 +164,11 @@ export type PassionDetail = {
   emoji?: string;
 };
 
-export type FunFact = {
-  text: string;
-  labels: string[];
-  sources: { name: string; url: string }[];
-};
-
 export type ProfileDetails = {
   userId: string;
   displayName: string | null;
   username: string | null;
   photoUrl: string | null;
-  photos: string[];
   link: string | null;
   location: string | null;
   birthday: string | null;
@@ -196,7 +189,6 @@ export type ProfileDetails = {
   netWorth: BioSectionItem[];
   worldview: { politics?: string; religion?: string; causes?: string } | null;
   passions: PassionDetail[];
-  funFacts: Record<string, FunFact[]>;
   socialLinks: { media: string; handle: string }[];
   orbitFirstDegree: { senditId: string; fullName: string; avatarUrl: string | null; link: string }[];
   orbitSources: { url: string; name: string }[];

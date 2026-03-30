@@ -8,7 +8,6 @@ import type {
   ApiOrbitFirstDegree,
   BioSectionItem,
   PassionDetail,
-  FunFact,
   ProfileDetails,
 } from "./types.js";
 
@@ -29,17 +28,6 @@ function parseBirthday(birthday?: string): string | null {
   const isoMatch = /(\d{4}-\d{2}-\d{2})/.exec(birthday);
   if (isoMatch) return isoMatch[1];
   return birthday;
-}
-
-function extractPhotos(widgets: ApiWidget[] | undefined): string[] {
-  if (!Array.isArray(widgets)) return [];
-  return widgets
-    .filter(w => w.type === "sendit.games:photoreview-v1")
-    .map(w => {
-      const data = w.data as { answer?: string } | undefined;
-      return data?.answer?.trim();
-    })
-    .filter((url): url is string => !!url);
 }
 
 function extractDefaultPhoto(widgets: ApiWidget[] | undefined): string | null {
@@ -131,38 +119,14 @@ function extractPassions(items: ApiPassionItem[] | undefined): PassionDetail[] {
   return result;
 }
 
-function extractFunFacts(widgets: ApiWidget[] | undefined): Record<string, FunFact[]> {
-  if (!Array.isArray(widgets)) return {};
-  const facts = widgets.filter(w => w.type === "sendit.games:fun-facts-v1");
-  const grouped: Record<string, FunFact[]> = {};
-  const seen = new Set<string>();
-
-  for (const fact of facts) {
-    const data = fact.data as { answer?: string; sources?: { name?: string; link?: string }[] } | undefined;
-    const answer = data?.answer?.trim();
-    if (!answer || seen.has(answer)) continue;
-    seen.add(answer);
-
-    const labels = fact.labels ?? ["none"];
-    const sources = (data?.sources ?? [])
-      .filter(s => s.link)
-      .map(s => ({ name: s.name ?? "", url: s.link! }));
-
-    const funFact: FunFact = { text: answer, labels, sources };
-
-    for (const label of labels) {
-      if (!grouped[label]) grouped[label] = [];
-      grouped[label].push(funFact);
-    }
-  }
-  return grouped;
-}
-
-function extractSkills(funFacts: Record<string, FunFact[]>): string[] {
+function extractSkillsFromWidgets(widgets: ApiWidget[] | undefined): string[] {
+  if (!Array.isArray(widgets)) return [];
   const skills: string[] = [];
-  // Look for skills mentions in fun facts
-  for (const fact of (funFacts["basics"] ?? [])) {
-    const match = /skills?\s+in\s+(.+?)(?:,\s+as\s+listed|\.)/i.exec(fact.text);
+  for (const w of widgets) {
+    if (w.type !== "sendit.games:fun-facts-v1") continue;
+    const data = w.data as { answer?: string } | undefined;
+    const text = data?.answer ?? "";
+    const match = /skills?\s+in\s+(.+?)(?:,\s+as\s+listed|\.)/i.exec(text);
     if (match) {
       skills.push(...match[1].split(/,\s*(?:and\s+)?/).map(s => s.trim()).filter(Boolean));
     }
@@ -170,16 +134,19 @@ function extractSkills(funFacts: Record<string, FunFact[]>): string[] {
   return [...new Set(skills)];
 }
 
-function extractPreviousLocations(funFacts: Record<string, FunFact[]>): string[] {
+function extractPreviousLocationsFromWidgets(widgets: ApiWidget[] | undefined): string[] {
+  if (!Array.isArray(widgets)) return [];
   const locations: string[] = [];
   const seen = new Set<string>();
-  for (const fact of (funFacts["basics"] ?? [])) {
-    const liveMatch = /(?:lived?\s+in|lives?\s+in)\s+(.+?)(?:\s*\(|$)/i.exec(fact.text);
-    if (liveMatch) {
-      const loc = liveMatch[1].replace(/[.,]+$/, "").trim();
-      const normalized = loc.toLowerCase();
-      if (!seen.has(normalized)) {
-        seen.add(normalized);
+  for (const w of widgets) {
+    if (w.type !== "sendit.games:fun-facts-v1") continue;
+    const data = w.data as { answer?: string } | undefined;
+    const text = data?.answer ?? "";
+    const match = /(?:^lived?\s+in|^lives?\s+in)\s+(.+?)(?:\s*\(|$)/i.exec(text);
+    if (match) {
+      const loc = match[1].replace(/[.,]+$/, "").trim();
+      if (loc.length < 60 && !seen.has(loc.toLowerCase())) {
+        seen.add(loc.toLowerCase());
         locations.push(loc);
       }
     }
@@ -220,14 +187,12 @@ export function extractDetailedProfile(
 ): ProfileDetails {
   const { aiRating } = profile;
   const myBasics = extractMyBasics(profile.widgets);
-  const funFacts = extractFunFacts(profile.widgets);
 
   return {
     userId,
     displayName: profile.displayName ?? null,
     username: profile.username ?? null,
     photoUrl: extractDefaultPhoto(profile.widgets),
-    photos: extractPhotos(profile.widgets),
     link: profile.link ?? null,
     location: aiRating.basic?.location?.trim() ?? profile.location?.city?.trim() ?? myBasics.location ?? null,
     birthday: myBasics.birthday ?? parseBirthday(aiRating.basic?.birthday) ?? null,
@@ -248,7 +213,6 @@ export function extractDetailedProfile(
     netWorth: listItems(aiRating.netWorth?.netWorth),
     worldview: worldview(aiRating.worldview),
     passions: extractPassions(aiRating.passions),
-    funFacts,
     socialLinks: (profile.socialMediaHandles ?? [])
       .filter((h) => h.media && h.handle?.trim())
       .map((h) => ({ media: h.media, handle: h.handle.trim() })),
@@ -256,7 +220,7 @@ export function extractDetailedProfile(
     orbitSources: (profile.orbitSources ?? [])
       .filter((s) => s.link)
       .map((s) => ({ url: s.link, name: s.title ?? s.sourceName ?? "" })),
-    skills: extractSkills(funFacts),
-    previousLocations: extractPreviousLocations(funFacts),
+    skills: extractSkillsFromWidgets(profile.widgets),
+    previousLocations: extractPreviousLocationsFromWidgets(profile.widgets),
   };
 }

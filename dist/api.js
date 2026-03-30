@@ -78,152 +78,107 @@ export async function getMyProfile() {
     return getProfile(userId);
 }
 export function formatProfile(profile) {
-    const lines = [];
-    // Header
-    lines.push(`=== ${profile.displayName || "Unknown"} ===`);
-    const header = [];
-    if (profile.location)
-        header.push(profile.location);
-    if (profile.age && profile.birthday)
-        header.push(`Age ${profile.age} (${profile.birthday})`);
-    else if (profile.age)
-        header.push(`Age ${profile.age}`);
-    if (profile.link)
-        header.push(profile.link);
-    if (header.length)
-        lines.push(header.join(" | "));
-    // Bio
-    if (profile.bio) {
-        lines.push("", "--- Bio ---", profile.bio);
-    }
-    // Basics
-    const basics = [];
+    const l = [];
+    // Header — one dense line
+    const hdr = [profile.displayName || "Unknown"];
+    if (profile.age)
+        hdr.push(`${profile.age}`);
     if (profile.birthday)
-        basics.push(`  Birthday: ${profile.birthday}`);
+        hdr.push(`b. ${profile.birthday}`);
     if (profile.location)
-        basics.push(`  Current location: ${profile.location}`);
+        hdr.push(profile.location);
+    l.push(hdr.join(" | "));
+    if (profile.link)
+        l.push(profile.link);
+    // Bio
+    if (profile.bio)
+        l.push("", profile.bio);
+    // Skills
+    if (profile.skills.length > 0)
+        l.push("", `Skills: ${profile.skills.join(", ")}`);
+    // Previous locations (dedupe, compact)
     if (profile.previousLocations.length > 0) {
-        basics.push(`  Previous locations: ${profile.previousLocations.join(", ")}`);
+        l.push(`Locations: ${profile.previousLocations.join(" → ")}`);
     }
-    if (profile.skills.length > 0) {
-        basics.push(`  Skills: ${profile.skills.join(", ")}`);
-    }
-    if (basics.length > 0) {
-        lines.push("", "--- Basics ---", ...basics);
-    }
-    // Work History
+    // Work
     if (profile.jobs.length > 0) {
-        lines.push("", "--- Work History ---");
+        l.push("", "WORK");
         for (const j of profile.jobs) {
-            let line = `  * ${j.text}`;
+            let line = `  ${j.text}`;
             if (j.title)
-                line += ` — ${j.title}`;
+                line += `, ${j.title}`;
             if (j.years)
                 line += ` (${j.years})`;
-            lines.push(line);
+            l.push(line);
             if (j.description)
-                lines.push(`    ${j.description}`);
-            if (j.readMore)
-                lines.push(`    ${j.readMore.slice(0, 200)}${j.readMore.length > 200 ? "..." : ""}`);
+                l.push(`    ${j.description.slice(0, 150)}${j.description.length > 150 ? "..." : ""}`);
         }
     }
     // Education
     if (profile.education.length > 0) {
-        lines.push("", "--- Education ---");
-        for (const e of profile.education) {
-            lines.push(`  * ${e.text}${e.years ? ` (${e.years})` : ""}`);
-        }
+        l.push("", "EDUCATION");
+        for (const e of profile.education)
+            l.push(`  ${e.text}${e.years ? ` (${e.years})` : ""}`);
     }
     // Accomplishments
     if (profile.accomplishments.length > 0) {
-        lines.push("", "--- Accomplishments ---");
-        for (const a of profile.accomplishments) {
-            lines.push(`  * ${a.text}`);
-            if (a.readMore)
-                lines.push(`    ${a.readMore.slice(0, 200)}${a.readMore.length > 200 ? "..." : ""}`);
-        }
+        l.push("", "ACCOMPLISHMENTS");
+        for (const a of profile.accomplishments)
+            l.push(`  ${a.text}`);
     }
     // Controversies
     if (profile.controversies.length > 0) {
-        lines.push("", "--- Controversies ---");
-        for (const c of profile.controversies) {
-            lines.push(`  * ${c.text}`);
-            if (c.readMore)
-                lines.push(`    ${c.readMore.slice(0, 200)}${c.readMore.length > 200 ? "..." : ""}`);
-        }
+        l.push("", "CONTROVERSIES");
+        for (const c of profile.controversies)
+            l.push(`  ${c.text}`);
     }
     // Passions
     if (profile.passions.length > 0) {
-        lines.push("", "--- Passions ---");
+        l.push("", "PASSIONS");
         for (const p of profile.passions) {
-            let line = `  * ${p.name}`;
-            if (p.description)
-                line += ` — ${p.description}`;
-            lines.push(line);
-            if (p.detail)
-                lines.push(`    ${p.detail}`);
+            l.push(`  ${p.name}${p.detail ? ` — ${p.detail}` : ""}`);
         }
     }
-    // Personal Life
-    if (profile.personalLife.length > 0) {
-        lines.push("", "--- Personal Life ---");
-        for (const p of profile.personalLife)
-            lines.push(`  * ${p}`);
+    // Personal
+    const personal = [
+        ...profile.personalLife,
+        ...profile.bestQualities.map(q => q.text),
+    ].filter(Boolean);
+    if (personal.length > 0 || profile.worldview) {
+        l.push("", "PERSONAL");
+        for (const p of personal)
+            l.push(`  ${p}`);
+        if (profile.worldview) {
+            const wv = [];
+            if (profile.worldview.politics)
+                wv.push(`Politics: ${profile.worldview.politics}`);
+            if (profile.worldview.religion)
+                wv.push(`Religion: ${profile.worldview.religion}`);
+            if (profile.worldview.causes)
+                wv.push(`Causes: ${profile.worldview.causes}`);
+            for (const w of wv)
+                l.push(`  ${w}`);
+        }
     }
-    // Best Qualities
-    if (profile.bestQualities.length > 0) {
-        lines.push("", "--- Best Qualities ---");
-        for (const q of profile.bestQualities)
-            lines.push(`  * ${q.text}`);
-    }
-    // Worldview
-    if (profile.worldview) {
-        lines.push("", "--- Worldview ---");
-        if (profile.worldview.politics)
-            lines.push(`  Politics: ${profile.worldview.politics}`);
-        if (profile.worldview.religion)
-            lines.push(`  Religion: ${profile.worldview.religion}`);
-        if (profile.worldview.causes)
-            lines.push(`  Causes: ${profile.worldview.causes}`);
-    }
-    // Social Media
+    // Social
     if (profile.socialLinks.length > 0) {
-        lines.push("", "--- Social Media ---");
+        l.push("", "SOCIAL");
         for (const s of profile.socialLinks)
-            lines.push(`  ${s.media}: ${s.handle}`);
-    }
-    // Fun Facts (grouped by category, skip basics/social_media_and_links to avoid repetition)
-    const factCategories = ["hobbies_and_interests", "early_life", "brand_preferences", "music", "possessions", "worldview"];
-    for (const category of factCategories) {
-        const facts = profile.funFacts[category];
-        if (facts && facts.length > 0) {
-            const label = category.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-            lines.push("", `--- ${label} ---`);
-            for (const f of facts.slice(0, 10)) {
-                lines.push(`  * ${f.text}`);
-            }
-        }
+            l.push(`  ${s.media}: ${s.handle}`);
     }
     // Connections
     if (profile.orbitFirstDegree.length > 0) {
-        lines.push("", `--- Connections (${profile.orbitFirstDegree.length}) ---`);
-        const shown = profile.orbitFirstDegree.slice(0, 20);
-        lines.push(`  ${shown.map(c => c.fullName).join(", ")}${profile.orbitFirstDegree.length > 20 ? `, ... and ${profile.orbitFirstDegree.length - 20} more` : ""}`);
+        const names = profile.orbitFirstDegree.slice(0, 15).map(c => c.fullName).join(", ");
+        const more = profile.orbitFirstDegree.length > 15 ? ` +${profile.orbitFirstDegree.length - 15} more` : "";
+        l.push("", `CONNECTIONS (${profile.orbitFirstDegree.length})`, `  ${names}${more}`);
     }
-    // Sources
+    // Sources — inline per section above would be ideal but API gives them globally
     if (profile.orbitSources.length > 0) {
-        lines.push("", `--- Sources (${profile.orbitSources.length}) ---`);
-        for (const s of profile.orbitSources) {
-            lines.push(`  ${s.name || "link"}: ${s.url}`);
-        }
+        l.push("", "SOURCES");
+        for (const s of profile.orbitSources)
+            l.push(`  ${s.name || s.url}`);
     }
-    // Photos
-    if (profile.photos.length > 0) {
-        lines.push("", `--- Photos (${profile.photos.length}) ---`);
-        for (const p of profile.photos)
-            lines.push(`  ${p}`);
-    }
-    return lines.join("\n");
+    return l.join("\n");
 }
 // ── SSE parsing ──
 function parseSSEResponse(text) {
