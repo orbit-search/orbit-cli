@@ -1,8 +1,9 @@
-import { getMyProfile, formatProfile } from "../api.js";
+import { getMyProfile, formatProfile, formatProfileBrief } from "../api.js";
 import { getApiKey } from "../utils/config.js";
 
 export interface MeOptions {
   json?: boolean;
+  brief?: boolean;
 }
 
 export async function meCommand(options: MeOptions): Promise<void> {
@@ -16,6 +17,8 @@ export async function meCommand(options: MeOptions): Promise<void> {
 
     if (options.json) {
       console.log(JSON.stringify(profile, null, 2));
+    } else if (options.brief) {
+      console.log(formatProfileBrief(profile));
     } else {
       console.log(formatProfile(profile));
     }

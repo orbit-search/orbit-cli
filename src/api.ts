@@ -41,11 +41,14 @@ export async function searchPeople(query: string, numResults = 6): Promise<Searc
 
   let rawUsers: RawSearchUser[];
 
+  const timeout = AbortSignal.timeout(60_000);
+
   if (config.apiKey) {
     const response = await fetch(`${API_HOST}/v2/social/profiles/searches/smart/sse`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ query, numUsers: numResults, isManualInput: true }),
+      signal: timeout,
     });
 
     if (!response.ok) {
@@ -67,7 +70,8 @@ export async function searchPeople(query: string, numResults = 6): Promise<Searc
         numUsers: numResults,
         isManualInput: true,
       }),
-    });
+      signal: timeout,
+    } as RequestInit);
 
     const res = response as { payload?: { users?: RawSearchUser[] } };
     rawUsers = res?.payload?.users ?? [];
@@ -104,17 +108,19 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   return getProfile(userId);
 }
 
-function srcLine(sources: SourceLink[]): string | null {
+function srcLine(sources: SourceLink[], max = 5): string | null {
   if (sources.length === 0) return null;
   const seen = new Set<string>();
   const urls: string[] = [];
   for (const s of sources) {
+    if (urls.length >= max) break;
     try {
       const host = new URL(s.url).hostname.replace(/^www\./, "");
       if (!seen.has(host)) { seen.add(host); urls.push(s.url); }
     } catch { urls.push(s.url); }
   }
-  return `  src: ${urls.join(" ")}`;
+  const more = sources.length > max ? ` (+${sources.length - max} more)` : "";
+  return `  src: ${urls.join(" ")}${more}`;
 }
 
 export function formatProfile(profile: ProfileDetails): string {
@@ -212,6 +218,27 @@ export function formatProfile(profile: ProfileDetails): string {
     const n = profile.orbitFirstDegree.length;
     const names = profile.orbitFirstDegree.slice(0, 10).map(c => c.fullName).join(", ");
     l.push("", `CONNECTIONS (${n}): ${names}${n > 10 ? ` +${n - 10} more` : ""}`);
+  }
+
+  return l.join("\n");
+}
+
+export function formatProfileBrief(profile: ProfileDetails): string {
+  const l: string[] = [];
+
+  const hdr = [profile.displayName || "Unknown"];
+  if (profile.age) hdr.push(`${profile.age}`);
+  if (profile.location) hdr.push(profile.location);
+  l.push(hdr.join(" | "));
+
+  if (profile.bio) l.push(profile.bio);
+
+  if (profile.jobs.length > 0) {
+    l.push(`Work: ${profile.jobs.slice(0, 3).map(j => `${j.text}${j.years ? ` (${j.years})` : ""}`).join(", ")}`);
+  }
+
+  if (profile.socialLinks.length > 0) {
+    l.push(profile.socialLinks.map(s => `${s.media}: ${s.handle}`).join(" | "));
   }
 
   return l.join("\n");

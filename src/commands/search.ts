@@ -2,11 +2,13 @@ import { searchPeople } from "../api.js";
 
 export interface SearchOptions {
   json?: boolean;
+  limit?: number;
 }
 
 export async function searchCommand(query: string, options: SearchOptions): Promise<void> {
+  const limit = options.limit ?? 6;
   try {
-    const results = await searchPeople(query);
+    const results = await searchPeople(query, limit);
 
     if (results.length === 0) {
       console.log(`No results found for "${query}".`);
@@ -23,7 +25,9 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
         console.log(`${parts.join(" | ")}  [${r.userId}]`);
         if (r.matchReason) console.log(`  ${r.matchReason}`);
       }
-      console.log(`\n${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`);
+      if (results.length > 1) {
+        console.log(`\n${results.length} results for "${query}"`);
+      }
     }
   } catch (error) {
     console.error(`Search failed: ${error instanceof Error ? error.message : error}`);

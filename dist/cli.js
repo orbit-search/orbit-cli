@@ -18,23 +18,30 @@ program
     .description("Search for people by name or natural language query")
     .argument("<query>", "Search query")
     .option("-j, --json", "Output structured JSON")
+    .option("-n, --limit <n>", "Max results", "6")
+    .option("-1, --first", "Show only the first result")
     .action(async (query, options) => {
-    await searchCommand(query, { json: options.json });
+    await searchCommand(query, {
+        json: options.json,
+        limit: options.first ? 1 : Number(options.limit) || 6,
+    });
 });
 program
     .command("profile")
     .description("Get detailed profile for a person by user ID")
     .argument("<userId>", "User ID (UUID)")
     .option("-j, --json", "Output structured JSON")
+    .option("-b, --brief", "Short summary (name, bio, work, social)")
     .action(async (userId, options) => {
-    await profileCommand(userId, { json: options.json });
+    await profileCommand(userId, { json: options.json, brief: options.brief });
 });
 program
     .command("me")
     .description("Get your own profile (requires authentication)")
     .option("-j, --json", "Output structured JSON")
+    .option("-b, --brief", "Short summary")
     .action(async (options) => {
-    await meCommand({ json: options.json });
+    await meCommand({ json: options.json, brief: options.brief });
 });
 program
     .command("login")

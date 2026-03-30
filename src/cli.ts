@@ -21,8 +21,13 @@ program
   .description("Search for people by name or natural language query")
   .argument("<query>", "Search query")
   .option("-j, --json", "Output structured JSON")
-  .action(async (query: string, options: { json?: boolean }) => {
-    await searchCommand(query, { json: options.json });
+  .option("-n, --limit <n>", "Max results", "6")
+  .option("-1, --first", "Show only the first result")
+  .action(async (query: string, options: { json?: boolean; limit?: string; first?: boolean }) => {
+    await searchCommand(query, {
+      json: options.json,
+      limit: options.first ? 1 : Number(options.limit) || 6,
+    });
   });
 
 program
@@ -30,16 +35,18 @@ program
   .description("Get detailed profile for a person by user ID")
   .argument("<userId>", "User ID (UUID)")
   .option("-j, --json", "Output structured JSON")
-  .action(async (userId: string, options: { json?: boolean }) => {
-    await profileCommand(userId, { json: options.json });
+  .option("-b, --brief", "Short summary (name, bio, work, social)")
+  .action(async (userId: string, options: { json?: boolean; brief?: boolean }) => {
+    await profileCommand(userId, { json: options.json, brief: options.brief });
   });
 
 program
   .command("me")
   .description("Get your own profile (requires authentication)")
   .option("-j, --json", "Output structured JSON")
-  .action(async (options: { json?: boolean }) => {
-    await meCommand({ json: options.json });
+  .option("-b, --brief", "Short summary")
+  .action(async (options: { json?: boolean; brief?: boolean }) => {
+    await meCommand({ json: options.json, brief: options.brief });
   });
 
 program

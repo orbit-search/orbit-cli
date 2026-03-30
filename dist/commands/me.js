@@ -1,4 +1,4 @@
-import { getMyProfile, formatProfile } from "../api.js";
+import { getMyProfile, formatProfile, formatProfileBrief } from "../api.js";
 import { getApiKey } from "../utils/config.js";
 export async function meCommand(options) {
     if (!getApiKey()) {
@@ -9,6 +9,9 @@ export async function meCommand(options) {
         const profile = await getMyProfile();
         if (options.json) {
             console.log(JSON.stringify(profile, null, 2));
+        }
+        else if (options.brief) {
+            console.log(formatProfileBrief(profile));
         }
         else {
             console.log(formatProfile(profile));

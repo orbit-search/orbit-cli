@@ -58,11 +58,34 @@ function extractMyBasics(widgets: ApiWidget[] | undefined): { birthday?: string;
 function listItems(items: ApiBioSectionListItem[] | undefined): BioSectionItem[] {
   if (!items) return [];
   const result: BioSectionItem[] = [];
+  const seen = new Set<string>();
   for (const item of items) {
     if (!item.name?.trim()) continue;
     let years = item.extData?.years;
     if (years && /^\d{4}-$/.test(years)) years = `${years}Present`;
     
+    // Deduplicate: normalize name (strip Inc/Corp/LLC, trailing punctuation) + overlapping year ranges
+    const normName = item.name.trim().toLowerCase()
+      .replace(/[,.]?\s*(inc|corp|llc|ltd|co)\b\.?/gi, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    // Check if we already have an entry with the same normalized name and overlapping years
+    const isDupe = result.some(existing => {
+      const existNorm = existing.text.toLowerCase()
+        .replace(/[,.]?\s*(inc|corp|llc|ltd|co)\b\.?/gi, "")
+        .replace(/[^a-z0-9\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (existNorm !== normName) return false;
+      // Same name — check year overlap
+      if (!years || !existing.years) return true; // no years = assume same
+      const [s1] = (existing.years).split("-");
+      const [s2] = (years).split("-");
+      return s1 === s2; // same start year = dupe
+    });
+    if (isDupe) continue;
+
     // Extract readMore narrative
     let readMore: string | undefined;
     const sections = item.extData?.readMore?.sections;
