@@ -14,29 +14,35 @@ Search for anyone and get detailed profiles with work history, education, accomp
 ## Quick Reference
 
 ```bash
-# Search by name
+# Search by name or natural language
 orbit search "Jane Smith"
-
-# Natural language search — find people by any criteria
 orbit search "lawyers in Los Angeles"
 orbit search "Stanford engineers who worked at Google"
-orbit search "founders in the AI space"
+orbit search "Sam Altman" --first         # top result only
+orbit search "dentists in Miami" --limit 3
 
-# Get a full profile by user ID
+# Lookup: search + full profile in one step
+orbit lookup "Mark Zuckerberg"
+orbit lookup "Mark Zuckerberg" --brief    # compact 4-line summary
+
+# Get full profile by user ID
 orbit profile <userId>
+orbit profile <userId> --brief
 
 # Get your own profile (authenticated)
 orbit me
+orbit me --brief
 
-# Output as JSON (for parsing)
-orbit search "Jane Smith" --json
+# JSON output (for piping / agent consumption)
+orbit search "query" --json
 orbit profile <userId> --json
+orbit lookup "name" --json
 
 # Auth management
-orbit login          # Opens browser for authentication
-orbit login --key sk_orb_...  # Set API key directly
-orbit whoami         # Check auth status
-orbit logout         # Remove API key
+orbit login          # Interactive (browser or paste key)
+orbit login --key sk_orb_...  # Non-interactive
+orbit whoami
+orbit logout
 ```
 
 ## When to Use Orbit
