@@ -1,6 +1,6 @@
 ---
 name: orbit
-description: 'Search for anyone using Orbit — the people search engine. Use when: looking up a person by name, getting detailed profile info (work history, education, accomplishments, worldview, social links), or researching individuals in conversation. Use the CLI for shell access or the MCP tools via mcporter for programmatic access.'
+description: 'Search for anyone using Orbit — the people search engine. Use when: looking up a person by name, finding people by criteria (profession, location, interests), getting detailed profile info (work history, education, accomplishments, worldview, social links), or researching individuals in conversation. Use the CLI for shell access or the MCP tools via mcporter for programmatic access.'
 metadata:
   {
     "openclaw": { "emoji": "🔍", "requires": { "anyBins": ["orbit"] } },
@@ -14,11 +14,19 @@ Search for anyone and get detailed profiles with work history, education, accomp
 ## Quick Reference
 
 ```bash
-# Search for someone by name
+# Search by name
 orbit search "Jane Smith"
+
+# Natural language search — find people by any criteria
+orbit search "lawyers in Los Angeles"
+orbit search "Stanford engineers who worked at Google"
+orbit search "founders in the AI space"
 
 # Get a full profile by user ID
 orbit profile <userId>
+
+# Get your own profile (authenticated)
+orbit me
 
 # Output as JSON (for parsing)
 orbit search "Jane Smith" --json
@@ -35,6 +43,7 @@ orbit logout         # Remove API key
 
 **YES — use Orbit for:**
 - Looking up a person mentioned in conversation
+- Finding people by criteria: profession, location, interests, background
 - Researching someone before a meeting, call, or introduction
 - Finding work history, education, or accomplishments for someone
 - Getting social media handles for a person
@@ -50,10 +59,24 @@ orbit logout         # Remove API key
 
 ### `orbit search <query>`
 
-Search by name. Returns top matches with summaries.
+Search using natural language. Not limited to names — you can search by profession, location, interests, or any combination.
 
 ```bash
+# By name
 orbit search "Nicholas Dominici"
+
+# By profession and location
+orbit search "lawyers in New York"
+orbit search "doctors around me"
+
+# By background
+orbit search "Stanford engineers who worked at Google"
+orbit search "YC founders in fintech"
+
+# By interests
+orbit search "people who are into rock climbing"
+
+# JSON output for parsing
 orbit search "Elon Musk" --json
 ```
 
@@ -66,11 +89,22 @@ orbit profile 293ce93b-4104-4cce-b1bb-7d89ddfa3238
 orbit profile 293ce93b-4104-4cce-b1bb-7d89ddfa3238 --json
 ```
 
+### `orbit me`
+
+Quickly get your own profile. Requires authentication (`orbit login`).
+
+```bash
+orbit me
+orbit me --json
+```
+
 ### MCP Tools (via mcporter)
 
 ```bash
-mcporter call orbit.search_people query="Jane Smith"
+mcporter call orbit.search_people query="lawyers in San Francisco"
 mcporter call orbit.get_profile userId="<uuid>"
+mcporter call orbit.whoami
+mcporter call orbit.me
 ```
 
 ## Output Format
@@ -128,7 +162,7 @@ Orbit works in two modes:
 
 **Anonymous mode** (default): Works out of the box for basic searches and profile lookups.
 
-**Authenticated mode** (`orbit login`): Uses a personal API key for better search results and match reasoning.
+**Authenticated mode** (`orbit login`): Uses a personal API key for better search results, match reasoning, and access to `orbit me`.
 
 1. Run `orbit login` — opens browser
 2. Sign in with your phone number (SMS OTP)
@@ -137,6 +171,6 @@ Orbit works in two modes:
 
 ## Tips
 
+- **Search is natural language** — don't just search names. Try "engineers at Stripe", "investors in crypto", "teachers in Austin"
 - **User IDs are UUIDs** — copy them from search results to use with `orbit profile`
-- **Names work best** — "John Smith" finds John Smiths. Natural language queries like "Stanford engineers" may work but depend on the search endpoint
 - **Profiles are pre-generated** — not every person in the world has an Orbit profile. If someone isn't found, they haven't been indexed yet

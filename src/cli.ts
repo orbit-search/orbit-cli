@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { searchCommand } from "./commands/search.js";
 import { profileCommand } from "./commands/profile.js";
+import { meCommand } from "./commands/me.js";
 import { loginCommand } from "./commands/login.js";
 import { loadConfig } from "./utils/config.js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -31,6 +32,14 @@ program
   .option("-j, --json", "Output structured JSON")
   .action(async (userId: string, options: { json?: boolean }) => {
     await profileCommand(userId, { json: options.json });
+  });
+
+program
+  .command("me")
+  .description("Get your own profile (requires authentication)")
+  .option("-j, --json", "Output structured JSON")
+  .action(async (options: { json?: boolean }) => {
+    await meCommand({ json: options.json });
   });
 
 program
