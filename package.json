@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-ai/orbit-cli",
+  "name": "orbit-cli",
   "version": "2.1.0",
   "description": "Orbit CLI — search for anyone from the command line",
   "type": "module",
