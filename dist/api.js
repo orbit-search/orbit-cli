@@ -62,7 +62,8 @@ export async function searchPeople(query, numResults = 6) {
     return parseUsers(res?.payload?.users ?? []);
 }
 export async function getProfile(userId) {
-    const response = await fetchJson(`${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getAuthHeaders() });
+    // Profile endpoint uses different auth — don't send API key in Authorization header
+    const response = await fetchJson(`${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders() });
     const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
     return extractDetailedProfile(socialProfile, orbitFirstDegree, userId);
 }
@@ -127,7 +128,7 @@ export function formatProfile(profile) {
 }
 // ── SSE parsing ──
 function parseSSEResponse(text) {
-    let latestPayload = null;
+    let latestUsers = [];
     const lines = text.split("\n");
     let currentEvent = "";
     let dataBuffer = "";
@@ -144,15 +145,15 @@ function parseSSEResponse(text) {
             if (currentEvent && dataBuffer) {
                 try {
                     if (currentEvent === "initial") {
-                        latestPayload = JSON.parse(dataBuffer);
+                        const parsed = JSON.parse(dataBuffer);
+                        // Handle both {users:[...]} and {status,payload:{users:[...]}} formats
+                        latestUsers = parsed?.payload?.users ?? parsed?.users ?? [];
                     }
-                    else if (currentEvent === "update" && latestPayload) {
+                    else if (currentEvent === "update" && latestUsers.length > 0) {
                         const update = JSON.parse(dataBuffer);
-                        if (latestPayload.users) {
-                            const existing = latestPayload.users.find((u) => u.userId === update.userId);
-                            if (existing)
-                                existing.matchReason = update.matchReason;
-                        }
+                        const existing = latestUsers.find((u) => u.userId === update.userId);
+                        if (existing)
+                            existing.matchReason = update.matchReason;
                     }
                 }
                 catch { /* skip */ }
@@ -161,7 +162,7 @@ function parseSSEResponse(text) {
             dataBuffer = "";
         }
     }
-    return parseUsers(latestPayload?.users ?? []);
+    return parseUsers(latestUsers);
 }
 function parseUsers(rawUsers) {
     const users = new Map();
