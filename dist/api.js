@@ -77,9 +77,29 @@ export async function getMyProfile() {
         throw new Error("Could not determine your user ID. Is your API key valid?");
     return getProfile(userId);
 }
+function fmtSources(sources) {
+    if (sources.length === 0)
+        return [];
+    // Deduplicate by hostname, keep first URL per domain
+    const seen = new Set();
+    const deduped = [];
+    for (const s of sources) {
+        try {
+            const host = new URL(s.url).hostname.replace(/^www\./, "");
+            if (!seen.has(host)) {
+                seen.add(host);
+                deduped.push(s);
+            }
+        }
+        catch {
+            deduped.push(s);
+        }
+    }
+    return [`  Sources: ${deduped.map(s => s.url).join(" , ")}`];
+}
 export function formatProfile(profile) {
     const l = [];
-    // Header — one dense line
+    // Header
     const hdr = [profile.displayName || "Unknown"];
     if (profile.age)
         hdr.push(`${profile.age}`);
@@ -91,14 +111,16 @@ export function formatProfile(profile) {
     if (profile.link)
         l.push(profile.link);
     // Bio
-    if (profile.bio)
+    if (profile.bio) {
         l.push("", profile.bio);
+        l.push(...fmtSources(profile.bioSources));
+    }
     // Skills
     if (profile.skills.length > 0)
         l.push("", `Skills: ${profile.skills.join(", ")}`);
-    // Previous locations (dedupe, compact)
+    // Locations
     if (profile.previousLocations.length > 0) {
-        l.push(`Locations: ${profile.previousLocations.join(" → ")}`);
+        l.push(`Locations: ${profile.previousLocations.join(" > ")}`);
     }
     // Work
     if (profile.jobs.length > 0) {
@@ -113,24 +135,28 @@ export function formatProfile(profile) {
             if (j.description)
                 l.push(`    ${j.description.slice(0, 150)}${j.description.length > 150 ? "..." : ""}`);
         }
+        l.push(...fmtSources(profile.jobSources));
     }
     // Education
     if (profile.education.length > 0) {
         l.push("", "EDUCATION");
         for (const e of profile.education)
             l.push(`  ${e.text}${e.years ? ` (${e.years})` : ""}`);
+        l.push(...fmtSources(profile.educationSources));
     }
     // Accomplishments
     if (profile.accomplishments.length > 0) {
         l.push("", "ACCOMPLISHMENTS");
         for (const a of profile.accomplishments)
             l.push(`  ${a.text}`);
+        l.push(...fmtSources(profile.accomplishmentSources));
     }
     // Controversies
     if (profile.controversies.length > 0) {
         l.push("", "CONTROVERSIES");
         for (const c of profile.controversies)
             l.push(`  ${c.text}`);
+        l.push(...fmtSources(profile.controversySources));
     }
     // Passions
     if (profile.passions.length > 0) {
@@ -149,15 +175,12 @@ export function formatProfile(profile) {
         for (const p of personal)
             l.push(`  ${p}`);
         if (profile.worldview) {
-            const wv = [];
             if (profile.worldview.politics)
-                wv.push(`Politics: ${profile.worldview.politics}`);
+                l.push(`  Politics: ${profile.worldview.politics}`);
             if (profile.worldview.religion)
-                wv.push(`Religion: ${profile.worldview.religion}`);
+                l.push(`  Religion: ${profile.worldview.religion}`);
             if (profile.worldview.causes)
-                wv.push(`Causes: ${profile.worldview.causes}`);
-            for (const w of wv)
-                l.push(`  ${w}`);
+                l.push(`  Causes: ${profile.worldview.causes}`);
         }
     }
     // Social
@@ -171,12 +194,6 @@ export function formatProfile(profile) {
         const names = profile.orbitFirstDegree.slice(0, 15).map(c => c.fullName).join(", ");
         const more = profile.orbitFirstDegree.length > 15 ? ` +${profile.orbitFirstDegree.length - 15} more` : "";
         l.push("", `CONNECTIONS (${profile.orbitFirstDegree.length})`, `  ${names}${more}`);
-    }
-    // Sources — inline per section above would be ideal but API gives them globally
-    if (profile.orbitSources.length > 0) {
-        l.push("", "SOURCES");
-        for (const s of profile.orbitSources)
-            l.push(`  ${s.name || s.url}`);
     }
     return l.join("\n");
 }

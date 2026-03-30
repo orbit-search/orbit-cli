@@ -184,6 +184,10 @@ export type PassionDetail = {
     detail?: string;
     emoji?: string;
 };
+export type SourceLink = {
+    name: string;
+    url: string;
+};
 export type ProfileDetails = {
     userId: string;
     displayName: string | null;
@@ -202,9 +206,13 @@ export type ProfileDetails = {
     loveLanguage: string[];
     starSign: string[];
     jobs: BioSectionItem[];
+    jobSources: SourceLink[];
     education: BioSectionItem[];
+    educationSources: SourceLink[];
     accomplishments: BioSectionItem[];
+    accomplishmentSources: SourceLink[];
     controversies: BioSectionItem[];
+    controversySources: SourceLink[];
     bestQualities: BioSectionItem[];
     netWorth: BioSectionItem[];
     worldview: {
@@ -213,6 +221,7 @@ export type ProfileDetails = {
         causes?: string;
     } | null;
     passions: PassionDetail[];
+    bioSources: SourceLink[];
     socialLinks: {
         media: string;
         handle: string;

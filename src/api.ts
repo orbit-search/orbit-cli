@@ -4,7 +4,7 @@
 
 import { loadConfig } from "./utils/config.js";
 import { extractDetailedProfile, parseApiResponse } from "./extractors.js";
-import type { ProfileDetails, SearchUser } from "./types.js";
+import type { ProfileDetails, SearchUser, SourceLink } from "./types.js";
 
 const API_HOST = "https://api.orbitsearch.com";
 const APP_ID = "0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d";
@@ -96,10 +96,29 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   return getProfile(userId);
 }
 
+function fmtSources(sources: SourceLink[]): string[] {
+  if (sources.length === 0) return [];
+  // Deduplicate by hostname, keep first URL per domain
+  const seen = new Set<string>();
+  const deduped: SourceLink[] = [];
+  for (const s of sources) {
+    try {
+      const host = new URL(s.url).hostname.replace(/^www\./, "");
+      if (!seen.has(host)) {
+        seen.add(host);
+        deduped.push(s);
+      }
+    } catch {
+      deduped.push(s);
+    }
+  }
+  return [`  Sources: ${deduped.map(s => s.url).join(" , ")}`];
+}
+
 export function formatProfile(profile: ProfileDetails): string {
   const l: string[] = [];
 
-  // Header — one dense line
+  // Header
   const hdr = [profile.displayName || "Unknown"];
   if (profile.age) hdr.push(`${profile.age}`);
   if (profile.birthday) hdr.push(`b. ${profile.birthday}`);
@@ -108,14 +127,17 @@ export function formatProfile(profile: ProfileDetails): string {
   if (profile.link) l.push(profile.link);
 
   // Bio
-  if (profile.bio) l.push("", profile.bio);
+  if (profile.bio) {
+    l.push("", profile.bio);
+    l.push(...fmtSources(profile.bioSources));
+  }
 
   // Skills
   if (profile.skills.length > 0) l.push("", `Skills: ${profile.skills.join(", ")}`);
 
-  // Previous locations (dedupe, compact)
+  // Locations
   if (profile.previousLocations.length > 0) {
-    l.push(`Locations: ${profile.previousLocations.join(" → ")}`);
+    l.push(`Locations: ${profile.previousLocations.join(" > ")}`);
   }
 
   // Work
@@ -128,24 +150,28 @@ export function formatProfile(profile: ProfileDetails): string {
       l.push(line);
       if (j.description) l.push(`    ${j.description.slice(0, 150)}${j.description.length > 150 ? "..." : ""}`);
     }
+    l.push(...fmtSources(profile.jobSources));
   }
 
   // Education
   if (profile.education.length > 0) {
     l.push("", "EDUCATION");
     for (const e of profile.education) l.push(`  ${e.text}${e.years ? ` (${e.years})` : ""}`);
+    l.push(...fmtSources(profile.educationSources));
   }
 
   // Accomplishments
   if (profile.accomplishments.length > 0) {
     l.push("", "ACCOMPLISHMENTS");
     for (const a of profile.accomplishments) l.push(`  ${a.text}`);
+    l.push(...fmtSources(profile.accomplishmentSources));
   }
 
   // Controversies
   if (profile.controversies.length > 0) {
     l.push("", "CONTROVERSIES");
     for (const c of profile.controversies) l.push(`  ${c.text}`);
+    l.push(...fmtSources(profile.controversySources));
   }
 
   // Passions
@@ -165,11 +191,9 @@ export function formatProfile(profile: ProfileDetails): string {
     l.push("", "PERSONAL");
     for (const p of personal) l.push(`  ${p}`);
     if (profile.worldview) {
-      const wv: string[] = [];
-      if (profile.worldview.politics) wv.push(`Politics: ${profile.worldview.politics}`);
-      if (profile.worldview.religion) wv.push(`Religion: ${profile.worldview.religion}`);
-      if (profile.worldview.causes) wv.push(`Causes: ${profile.worldview.causes}`);
-      for (const w of wv) l.push(`  ${w}`);
+      if (profile.worldview.politics) l.push(`  Politics: ${profile.worldview.politics}`);
+      if (profile.worldview.religion) l.push(`  Religion: ${profile.worldview.religion}`);
+      if (profile.worldview.causes) l.push(`  Causes: ${profile.worldview.causes}`);
     }
   }
 
@@ -184,12 +208,6 @@ export function formatProfile(profile: ProfileDetails): string {
     const names = profile.orbitFirstDegree.slice(0, 15).map(c => c.fullName).join(", ");
     const more = profile.orbitFirstDegree.length > 15 ? ` +${profile.orbitFirstDegree.length - 15} more` : "";
     l.push("", `CONNECTIONS (${profile.orbitFirstDegree.length})`, `  ${names}${more}`);
-  }
-
-  // Sources — inline per section above would be ideal but API gives them globally
-  if (profile.orbitSources.length > 0) {
-    l.push("", "SOURCES");
-    for (const s of profile.orbitSources) l.push(`  ${s.name || s.url}`);
   }
 
   return l.join("\n");

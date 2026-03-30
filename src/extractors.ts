@@ -9,6 +9,7 @@ import type {
   BioSectionItem,
   PassionDetail,
   ProfileDetails,
+  SourceLink,
 } from "./types.js";
 
 function parseAge(birthday?: string): number | null {
@@ -154,6 +155,31 @@ function extractPreviousLocationsFromWidgets(widgets: ApiWidget[] | undefined): 
   return locations;
 }
 
+/** Extract unique source URLs from a section's .sources[] array */
+function extractSectionSources(sources: unknown[] | undefined): SourceLink[] {
+  if (!Array.isArray(sources)) return [];
+  const seen = new Set<string>();
+  const result: SourceLink[] = [];
+  for (const entry of sources) {
+    const inner = (entry as { sources?: { link?: string; name?: string }[] })?.sources;
+    if (!Array.isArray(inner)) continue;
+    for (const s of inner) {
+      if (s.link && !seen.has(s.link)) {
+        seen.add(s.link);
+        result.push({ name: s.name ?? "", url: s.link });
+      }
+    }
+  }
+  return result;
+}
+
+/** Extract sources from bioV2 or personalLife style objects with nested .sources.widgets[] */
+function extractNestedSources(sourcesObj: unknown): SourceLink[] {
+  if (!sourcesObj || typeof sourcesObj !== "object") return [];
+  const widgets = (sourcesObj as { widgets?: unknown[] }).widgets;
+  return extractSectionSources(widgets);
+}
+
 function firstDegree(data: ApiOrbitFirstDegree | undefined): ProfileDetails["orbitFirstDegree"] {
   if (!data?.users) return [];
   return data.users
@@ -206,13 +232,18 @@ export function extractDetailedProfile(
     loveLanguage: flags(aiRating.loveLanguage),
     starSign: flags(aiRating.starSign),
     jobs: listItems(aiRating.jobs?.jobs),
+    jobSources: extractSectionSources(aiRating.jobs?.sources),
     education: listItems(aiRating.education?.educations),
+    educationSources: extractSectionSources(aiRating.education?.sources),
     accomplishments: listItems(aiRating.accomplishments?.accomplishments),
+    accomplishmentSources: extractSectionSources(aiRating.accomplishments?.sources),
     controversies: listItems(aiRating.controversies?.controversies),
+    controversySources: extractSectionSources(aiRating.controversies?.sources),
     bestQualities: listItems(aiRating.bestQualities?.qualities),
     netWorth: listItems(aiRating.netWorth?.netWorth),
     worldview: worldview(aiRating.worldview),
     passions: extractPassions(aiRating.passions),
+    bioSources: extractNestedSources(aiRating.bioV2?.sources),
     socialLinks: (profile.socialMediaHandles ?? [])
       .filter((h) => h.media && h.handle?.trim())
       .map((h) => ({ media: h.media, handle: h.handle.trim() })),
