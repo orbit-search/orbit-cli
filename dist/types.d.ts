@@ -13,9 +13,9 @@ export type ApiSocialProfile = {
     displayName: string;
     avatarUrl: string;
     username: string;
-    link: string;
-    verified?: boolean;
     generationLevel?: number;
+    verified?: boolean;
+    link: string;
     location?: {
         city: string;
         timezone: string;
@@ -24,17 +24,23 @@ export type ApiSocialProfile = {
     widgets: ApiWidget[];
     orbitSources: ApiOrbitSource[];
     aiRating: ApiAiRating;
+    orbitFirstDegree?: ApiOrbitFirstDegree;
 };
 export type ApiAiRating = {
+    aiBioVersion?: string;
     bio?: string;
+    bioV2?: {
+        bio?: string;
+        sources?: unknown;
+    };
     basic?: {
         birthday?: string;
-        school?: string;
         location?: string;
+        sources?: unknown;
     };
+    personalLife?: ApiFlagsSection;
     greenFlagsV2?: ApiFlagsSection;
     redFlagsV2?: ApiFlagsSection;
-    personalLife?: ApiFlagsSection;
     loveLanguage?: ApiFlagsSection;
     starSign?: ApiFlagsSection;
     jobs?: {
@@ -68,11 +74,13 @@ export type ApiAiRating = {
         sources?: unknown[];
     };
     passions?: ApiPassionItem[];
+    profileSearchSuggestions?: unknown[];
 };
 export type ApiFlagsSection = {
     bio: string;
     flags: Record<string, string>;
     sources?: unknown;
+    pictures?: unknown;
     updatedAt?: string;
 };
 export type ApiBioSectionListItem = {
@@ -82,8 +90,19 @@ export type ApiBioSectionListItem = {
     imageUrl?: string;
     extData?: {
         years?: string;
+        jobTitle?: string;
+        jobDescription?: string;
+        estimatedSalary?: string;
+        companyRecordId?: string;
         backgroundImageUrl?: string;
         schoolId?: string;
+        readMore?: {
+            promptVersion?: string;
+            sections?: {
+                title?: string;
+                content?: string;
+            }[];
+        };
     };
     reason?: string;
 };
@@ -91,9 +110,10 @@ export type ApiPassionItem = {
     id: string;
     passion: string;
     description?: string;
-    detail?: unknown;
+    detail?: string;
     position?: number;
     emoji?: string;
+    sources?: unknown[];
 };
 export type ApiSocialMediaHandle = {
     id: string;
@@ -104,11 +124,29 @@ export type ApiSocialMediaHandle = {
     priority?: number;
 };
 export type ApiWidget = {
+    id?: string;
     type: string;
     data?: {
         answer?: string;
+        question?: string;
         type?: string;
-    };
+        sources?: {
+            id?: string;
+            link?: string;
+            name?: string;
+        }[];
+    } | Array<{
+        answer?: string;
+        question?: string;
+        detectedCountry?: string;
+        detectedLocation?: string;
+        detectedRegion?: string;
+    }>;
+    priority?: number;
+    highlight?: boolean;
+    hide?: boolean;
+    labels?: string[];
+    aiScore?: number;
 };
 export type ApiOrbitSource = {
     id: string;
@@ -135,14 +173,34 @@ export type SearchUser = {
 export type BioSectionItem = {
     text: string;
     years?: string;
+    title?: string;
+    description?: string;
+    readMore?: string;
+    imageUrl?: string;
+};
+export type PassionDetail = {
+    name: string;
+    description?: string;
+    detail?: string;
+    emoji?: string;
+};
+export type FunFact = {
+    text: string;
+    labels: string[];
+    sources: {
+        name: string;
+        url: string;
+    }[];
 };
 export type ProfileDetails = {
     userId: string;
     displayName: string | null;
     username: string | null;
     photoUrl: string | null;
+    photos: string[];
     link: string | null;
     location: string | null;
+    birthday: string | null;
     age: number | null;
     verified: boolean;
     generationLevel: number | null;
@@ -163,7 +221,8 @@ export type ProfileDetails = {
         religion?: string;
         causes?: string;
     } | null;
-    passions: string[];
+    passions: PassionDetail[];
+    funFacts: Record<string, FunFact[]>;
     socialLinks: {
         media: string;
         handle: string;
@@ -178,5 +237,7 @@ export type ProfileDetails = {
         url: string;
         name: string;
     }[];
+    skills: string[];
+    previousLocations: string[];
 };
 //# sourceMappingURL=types.d.ts.map

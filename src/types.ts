@@ -2,7 +2,7 @@
 
 export type JsonRecord = Record<string, unknown>;
 
-// ── API response types (GET /v2/social/profiles/users/:userId) ──
+// ── API response types ──────────────────────────────────────────
 
 export type ApiProfileResponse = {
   status: string;
@@ -19,26 +19,29 @@ export type ApiSocialProfile = {
   displayName: string;
   avatarUrl: string;
   username: string;
-  link: string;
-  verified?: boolean;
   generationLevel?: number;
+  verified?: boolean;
+  link: string;
   location?: { city: string; timezone: string };
   socialMediaHandles: ApiSocialMediaHandle[];
   widgets: ApiWidget[];
   orbitSources: ApiOrbitSource[];
   aiRating: ApiAiRating;
+  orbitFirstDegree?: ApiOrbitFirstDegree;
 };
 
 export type ApiAiRating = {
+  aiBioVersion?: string;
   bio?: string;
+  bioV2?: { bio?: string; sources?: unknown };
   basic?: {
     birthday?: string;
-    school?: string;
     location?: string;
+    sources?: unknown;
   };
+  personalLife?: ApiFlagsSection;
   greenFlagsV2?: ApiFlagsSection;
   redFlagsV2?: ApiFlagsSection;
-  personalLife?: ApiFlagsSection;
   loveLanguage?: ApiFlagsSection;
   starSign?: ApiFlagsSection;
   jobs?: { jobs: ApiBioSectionListItem[]; sources?: unknown[] };
@@ -49,12 +52,14 @@ export type ApiAiRating = {
   netWorth?: { netWorth: ApiBioSectionListItem[]; sources?: unknown[] };
   worldview?: { politics?: string; religion?: string; causes?: string; sources?: unknown[] };
   passions?: ApiPassionItem[];
+  profileSearchSuggestions?: unknown[];
 };
 
 export type ApiFlagsSection = {
   bio: string;
   flags: Record<string, string>;
   sources?: unknown;
+  pictures?: unknown;
   updatedAt?: string;
 };
 
@@ -65,8 +70,16 @@ export type ApiBioSectionListItem = {
   imageUrl?: string;
   extData?: {
     years?: string;
+    jobTitle?: string;
+    jobDescription?: string;
+    estimatedSalary?: string;
+    companyRecordId?: string;
     backgroundImageUrl?: string;
     schoolId?: string;
+    readMore?: {
+      promptVersion?: string;
+      sections?: { title?: string; content?: string }[];
+    };
   };
   reason?: string;
 };
@@ -75,9 +88,10 @@ export type ApiPassionItem = {
   id: string;
   passion: string;
   description?: string;
-  detail?: unknown;
+  detail?: string;
   position?: number;
   emoji?: string;
+  sources?: unknown[];
 };
 
 export type ApiSocialMediaHandle = {
@@ -90,8 +104,19 @@ export type ApiSocialMediaHandle = {
 };
 
 export type ApiWidget = {
+  id?: string;
   type: string;
-  data?: { answer?: string; type?: string };
+  data?: {
+    answer?: string;
+    question?: string;
+    type?: string;
+    sources?: { id?: string; link?: string; name?: string }[];
+  } | Array<{ answer?: string; question?: string; detectedCountry?: string; detectedLocation?: string; detectedRegion?: string }>;
+  priority?: number;
+  highlight?: boolean;
+  hide?: boolean;
+  labels?: string[];
+  aiScore?: number;
 };
 
 export type ApiOrbitSource = {
@@ -114,18 +139,35 @@ export type ApiOrbitFirstDegree = {
   total: number;
 };
 
-// ── Search API response (POST /v2/social/profiles/searches/smart/internal) ──
+// ── Search types ────────────────────────────────────────────────
 
 export type SearchUser = {
   userId: string;
   matchReason?: string;
 };
 
-// ── Widget output types (what we send to the widget) ────────────
+// ── Extracted profile types ─────────────────────────────────────
 
 export type BioSectionItem = {
   text: string;
   years?: string;
+  title?: string;
+  description?: string;
+  readMore?: string;
+  imageUrl?: string;
+};
+
+export type PassionDetail = {
+  name: string;
+  description?: string;
+  detail?: string;
+  emoji?: string;
+};
+
+export type FunFact = {
+  text: string;
+  labels: string[];
+  sources: { name: string; url: string }[];
 };
 
 export type ProfileDetails = {
@@ -133,8 +175,10 @@ export type ProfileDetails = {
   displayName: string | null;
   username: string | null;
   photoUrl: string | null;
+  photos: string[];
   link: string | null;
   location: string | null;
+  birthday: string | null;
   age: number | null;
   verified: boolean;
   generationLevel: number | null;
@@ -151,8 +195,11 @@ export type ProfileDetails = {
   bestQualities: BioSectionItem[];
   netWorth: BioSectionItem[];
   worldview: { politics?: string; religion?: string; causes?: string } | null;
-  passions: string[];
+  passions: PassionDetail[];
+  funFacts: Record<string, FunFact[]>;
   socialLinks: { media: string; handle: string }[];
   orbitFirstDegree: { senditId: string; fullName: string; avatarUrl: string | null; link: string }[];
   orbitSources: { url: string; name: string }[];
+  skills: string[];
+  previousLocations: string[];
 };
