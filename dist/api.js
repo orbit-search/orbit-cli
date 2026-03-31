@@ -219,8 +219,12 @@ export function formatProfile(profile) {
     // Connections
     if (profile.orbitFirstDegree.length > 0) {
         const n = profile.orbitFirstDegree.length;
-        const names = profile.orbitFirstDegree.slice(0, 10).map(c => c.fullName).join(", ");
-        l.push("", `CONNECTIONS (${n}): ${names}${n > 10 ? ` +${n - 10} more` : ""}`);
+        l.push("", `CONNECTIONS (${n})`);
+        for (const c of profile.orbitFirstDegree.slice(0, 10)) {
+            l.push(`  ${c.fullName} [${c.senditId}]`);
+        }
+        if (n > 10)
+            l.push(`  +${n - 10} more`);
     }
     return l.join("\n");
 }
