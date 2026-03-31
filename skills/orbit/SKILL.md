@@ -56,8 +56,15 @@ orbit logout
 - Understanding someone's worldview, passions, or interests
 - Providing context about people in any task that involves individuals
 
+**Entity-related people searches** — Orbit can find people associated with companies, organizations, or events. Combine with web research for best results:
+- `orbit search "Humane AI employees"` — find people at a specific company
+- `orbit search "founders of Builder.ai"` — find leadership
+- `orbit search "engineers at Canoo"` — find team members
+- `orbit search "people at failed startups"` — broad category search
+- For questions like "who works at companies that are failing?" — first research which companies are struggling (web search), then use Orbit to find the people at those companies
+
 **NO — don't use Orbit for:**
-- Company research (Orbit is for people, not companies)
+- Company research directly (Orbit is for people, not companies — but you can find people *at* companies)
 - Finding contact info like email/phone (profiles may not have this)
 - Real-time social media posts (Orbit shows profile data, not feeds)
 
@@ -178,5 +185,8 @@ Orbit works in two modes:
 ## Tips
 
 - **Search is natural language** — don't just search names. Try "engineers at Stripe", "investors in crypto", "teachers in Austin"
+- **Entity searches work** — search for people by company, school, or org: "Humane AI employees", "founders of Builder.ai", "people who worked at Northvolt"
+- **Combine with web research** — for questions like "find people at failing startups", first identify the companies via web search, then use Orbit to find the people at each one
 - **User IDs are UUIDs** — copy them from search results to use with `orbit profile`
+- **Connections have IDs** — each person in the CONNECTIONS section includes their userId, so you can `orbit profile` them to expand your research
 - **Profiles are pre-generated** — not every person in the world has an Orbit profile. If someone isn't found, they haven't been indexed yet
