@@ -182,11 +182,16 @@ Orbit works in two modes:
 3. API key is automatically created and saved
 4. All subsequent commands use authenticated endpoints
 
+## Presenting Results
+
+- **Always show Orbit profile links** (e.g. `https://orbitsearch.com/nicholas-dominici286`) when sharing results with the user — never raw UUIDs unless explicitly asked
+- Profile links are in the `link` field of each profile response
+- Use IDs internally for `orbit profile` lookups, but surface the link to the human
+
 ## Tips
 
 - **Search is natural language** — don't just search names. Try "engineers at Stripe", "investors in crypto", "teachers in Austin"
 - **Entity searches work** — search for people by company, school, or org: "Humane AI employees", "founders of Builder.ai", "people who worked at Northvolt"
 - **Combine with web research** — for questions like "find people at failing startups", first identify the companies via web search, then use Orbit to find the people at each one
-- **User IDs are UUIDs** — copy them from search results to use with `orbit profile`
 - **Connections have IDs** — each person in the CONNECTIONS section includes their userId, so you can `orbit profile` them to expand your research
 - **Profiles are pre-generated** — not every person in the world has an Orbit profile. If someone isn't found, they haven't been indexed yet
