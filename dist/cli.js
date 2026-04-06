@@ -15,7 +15,7 @@ const program = new Command();
 program
     .name("orbit")
     .description("Orbit CLI — search people from the command line")
-    .version("2.0.0");
+    .version("2.1.0");
 program
     .command("search")
     .description("Search for people by name or natural language query")
