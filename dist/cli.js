@@ -3,6 +3,8 @@ import { Command } from "commander";
 import { searchCommand } from "./commands/search.js";
 import { profileCommand } from "./commands/profile.js";
 import { lookupCommand } from "./commands/lookup.js";
+import { connectionsCommand } from "./commands/connections.js";
+import { compareCommand } from "./commands/compare.js";
 import { meCommand } from "./commands/me.js";
 import { loginCommand } from "./commands/login.js";
 import { loadConfig } from "./utils/config.js";
@@ -44,6 +46,24 @@ program
     .option("-b, --brief", "Short summary")
     .action(async (query, options) => {
     await lookupCommand(query, { json: options.json, brief: options.brief });
+});
+program
+    .command("connections")
+    .description("List all connections for a person")
+    .argument("<userId>", "User ID (UUID)")
+    .option("-j, --json", "Output structured JSON")
+    .option("-n, --limit <n>", "Max connections to show")
+    .action(async (userId, options) => {
+    await connectionsCommand(userId, { json: options.json, limit: options.limit ? Number(options.limit) : undefined });
+});
+program
+    .command("compare")
+    .description("Compare two people — shared connections, companies, schools")
+    .argument("<userIdA>", "First person's user ID")
+    .argument("<userIdB>", "Second person's user ID")
+    .option("-j, --json", "Output structured JSON")
+    .action(async (a, b, options) => {
+    await compareCommand(a, b, { json: options.json });
 });
 program
     .command("me")

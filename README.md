@@ -1,10 +1,10 @@
 # Orbit CLI
 
-Search for anyone and get detailed profiles from the command line. Powered by [Orbit](https://orbitsearch.com).
+Search for anyone and get detailed profiles from the command line. Powered by [Orbit](https://orbitsearch.com) — the people search engine.
 
 Orbit builds comprehensive profiles from public data — work history, education, accomplishments, passions, social media, connections, and more. The CLI gives you direct access to all of this from your terminal.
 
-## Install
+## Quick Start
 
 ```bash
 git clone https://github.com/orbit-search/orbit-cli.git
@@ -14,144 +14,242 @@ npm run build
 npm link
 ```
 
-Now `orbit` is available globally.
+Now `orbit` is available globally. Try it:
+
+```bash
+orbit search "engineers at Stripe"
+orbit lookup "Sam Altman"
+orbit me
+```
 
 ## Authentication
 
-Orbit works in two modes:
+**Anonymous mode** works out of the box — basic search and profile lookups.
 
-**Anonymous** — works out of the box with basic search and profile lookups.
-
-**Authenticated** — uses your API key for better search results and access to `orbit me`.
+**Authenticated mode** gives you better search results and access to `orbit me`:
 
 ```bash
-# Interactive login (browser or paste key)
-orbit login
-
-# Direct key input (for scripts/CI)
-orbit login --key sk_orb_your_key_here
-
-# Check status
-orbit whoami
-
-# Remove key
-orbit logout
+orbit login                          # Interactive (browser or paste key)
+orbit login --key sk_orb_your_key    # Direct key input
+orbit whoami                         # Check auth status
+orbit logout                         # Remove key
 ```
 
-To get an API key, go to Settings on [orbitsearch.com](https://orbitsearch.com).
+API keys are stored at `~/.orbit-cli/config.json`.
 
 ## Commands
 
 ### `orbit search <query>`
 
-Natural language search. Not limited to names — search by profession, location, interests, or anything.
+Natural language people search. Not limited to names.
 
 ```bash
 orbit search "Jane Smith"
 orbit search "lawyers in Los Angeles"
 orbit search "Stanford engineers who worked at Google"
-orbit search "founders in the AI space"
+orbit search "founders of Builder.ai"
+orbit search "investors in crypto"
 
-# JSON output
-orbit search "Jane Smith" --json
+# Options
+orbit search "Sam Altman" --first       # Top result only
+orbit search "query" --limit 3          # Cap results
+orbit search "query" --json             # Structured output
 ```
+
+Returns: name, age, city, match reason, and user ID for each result.
+
+### `orbit lookup <query>`
+
+Search + full profile in one command. Finds the top match and shows the full dossier.
+
+```bash
+orbit lookup "Mark Zuckerberg"
+orbit lookup "Mark Zuckerberg" --brief  # 4-line summary
+orbit lookup "Mark Zuckerberg" --json
+```
+
+This is the fastest way to go from a name to a full profile.
 
 ### `orbit profile <userId>`
 
-Get a full profile by user ID (UUID from search results).
+Full profile by user ID (UUID from search results or connections).
 
 ```bash
 orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc
+orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc --brief
 orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc --json
+```
+
+### `orbit connections <userId>`
+
+List all first-degree connections for a person. Each connection includes their user ID so you can chain into `orbit profile`.
+
+```bash
+orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc
+orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc --limit 20
+orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc --json
+```
+
+### `orbit compare <userIdA> <userIdB>`
+
+Side-by-side comparison of two people. Shows shared connections, companies, schools, and skills.
+
+```bash
+orbit compare <userId1> <userId2>
+orbit compare <userId1> <userId2> --json
 ```
 
 ### `orbit me`
 
-Get your own profile (requires authentication).
+Your own profile (requires authentication).
 
 ```bash
 orbit me
+orbit me --brief
 orbit me --json
 ```
 
-### `orbit login`
+## Output Formats
 
-Authenticate with Orbit. Interactive menu lets you choose browser auth or paste an API key.
+**Default** — Human-readable, compact text:
+```
+Nicholas Vinicius Dominici | 23 | b. 2002-12-01 | Santa Monica, CA
+https://orbitsearch.com/nicholas-dominici286
 
-### `orbit whoami`
+Currently based in Santa Monica, Nicholas Dominici is a Director of Innovation...
+  src: https://grokipedia.com/... https://linkedin.com/...
+Skills: Machine Learning, TypeScript, Python, JavaScript, Unity, AR
+Locations: West Palm Beach, FL > Santa Monica, CA > Los Angeles, CA
 
-Show current authentication status.
+WORK
+  Orbit Intelligence | 2026-Present
+    Building the next-gen people data layer for agents.
+  Iconic Hearts | 2024-2026
+    As the Director of Innovation, I lead our efforts in pioneering next-gen social...
 
-### `orbit logout`
+ACCOMPLISHMENTS
+  Created Viral Vogue Lens Amassing 2.4 Billion Views
+  ...
 
-Remove saved API key.
+SOCIAL
+  linkedin: nicholas-dominici-110b4a178 | github: NicholasDominici | snapchat: nick-dominici
+
+CONNECTIONS (50)
+  Garrison R Magyar [00a08c0e...]
+  ...
+```
+
+**`--brief`** — 4-line summary:
+```
+Nicholas Vinicius Dominici | 23 | Santa Monica, CA
+Currently based in Santa Monica, Nicholas Dominici is a Director of Innovation...
+Work: Orbit Intelligence (2026-Present), Iconic Hearts (2024-2026)
+linkedin: nicholas-dominici-110b4a178 | github: NicholasDominici | snapchat: nick-dominici
+```
+
+**`--json`** — Full structured data for programmatic use:
+```bash
+orbit profile <id> --json | jq '.jobs'
+orbit search "query" --json | jq '.[0].userId'
+orbit connections <id> --json | jq '.[].fullName'
+```
 
 ## Profile Data
 
-Each profile can include:
+Each profile may include:
 
-- **Bio** — AI-generated summary
-- **Basics** — birthday, location, skills, previous locations
-- **Work history** — companies, titles, descriptions, timelines
-- **Education** — schools with date ranges
-- **Accomplishments** — notable achievements with detailed narratives
-- **Passions** — interests with descriptions and details
-- **Personal life** — background, personality traits
-- **Best qualities** — positive traits
-- **Controversies** — public controversies if any
-- **Worldview** — political views, religion, causes
-- **Fun facts** — categorized insights (hobbies, early life, brand preferences, music, etc.)
-- **Social media** — LinkedIn, GitHub, Snapchat, Instagram, etc.
-- **Connections** — people connected to them in Orbit
-- **Sources** — web sources the profile was built from
-- **Photos** — profile and discovered photos
+| Section | Description |
+|---|---|
+| Bio | AI-generated summary |
+| Basics | Birthday, location, skills, previous locations |
+| Work | Companies, titles, descriptions, date ranges |
+| Education | Schools with date ranges |
+| Accomplishments | Notable achievements |
+| Controversies | Public controversies |
+| Passions | Interests with descriptions |
+| Personal Life | Background, birthplace, traits |
+| Best Qualities | Positive traits |
+| Worldview | Politics, religion, causes |
+| Social | LinkedIn, GitHub, Twitter, Instagram, etc. |
+| Connections | First-degree connections with IDs |
+| Sources | Web sources per section (deduped by domain) |
 
 Not every profile has all fields. Coverage depends on the person's public footprint.
 
-## JSON Output
+## Search Capabilities
 
-Pass `--json` to any command for structured JSON output. Useful for piping into other tools or for agent consumption.
+Orbit's search understands natural language. Some examples:
 
 ```bash
-# Pipe profile to jq
-orbit profile <id> --json | jq '.jobs'
+# By name
+orbit search "Jane Smith"
 
-# Get just social links
-orbit profile <id> --json | jq '.socialLinks'
+# By profession + location
+orbit search "dentists in Miami"
+orbit search "lawyers in New York"
 
-# Search and get IDs
-orbit search "query" --json | jq '.[].userId'
+# By company
+orbit search "engineers at Stripe"
+orbit search "founders of Builder.ai"
+orbit search "people who worked at Northvolt"
+
+# By background
+orbit search "Stanford engineers who worked at Google"
+orbit search "YC founders in fintech"
+
+# By interest
+orbit search "people into rock climbing in Colorado"
 ```
 
-## Agent / MCP Usage
+## Piping & Scripting
 
-Orbit is designed to be an agent's superpower for understanding people. An AI agent can:
+The CLI is designed for composability:
 
-1. **Self-setup**: Run `orbit me` to instantly understand its user
-2. **Research anyone**: Run `orbit search` before meetings, calls, or introductions
-3. **Deep context**: Use `--json` for structured data that's easy to parse and reason about
+```bash
+# Search → get first user ID → full profile
+orbit search "Sam Altman" --first --json | jq -r '.[0].userId' | xargs orbit profile
 
-### As an OpenClaw Skill
+# Get all connection IDs
+orbit connections <id> --json | jq -r '.[].senditId'
 
-Install the skill from the `skills/orbit/` directory in this repo, or use `orbit` directly from the command line.
+# Batch profile lookups
+orbit connections <id> --json | jq -r '.[].senditId' | head -5 | xargs -I {} orbit profile {} --brief
 
-### As an MCP Server
+# Compare yourself to someone
+ME=$(orbit me --json | jq -r '.userId')
+orbit compare $ME <otherUserId>
+```
 
-The Orbit MCP server ([orbit-chatgpt-app](https://github.com/orbit-search/orbit-chatgpt-app)) exposes the same capabilities via MCP protocol:
+## API Endpoints
 
-- `search_people` — natural language search
-- `get_profile` — full profile by user ID
-- `me` — authenticated user's own profile
-- `whoami` — auth status
+The CLI hits these Orbit API endpoints:
 
-## Configuration
+| Command | Endpoint |
+|---|---|
+| `search` | `POST /v2/social/profiles/searches/smart/sse` (authenticated) or `/smart/internal` (anonymous) |
+| `profile` | `GET /v2/social/profiles/users/{userId}` |
+| `me` | `GET /v1/profile` → resolves userId → profile endpoint |
 
-Config is stored at `~/.orbit-cli/config.json`:
+All requests include `App-Id` and `App-Version` headers. Authenticated requests add `Authorization: Bearer sk_orb_...`.
 
-```json
-{
-  "apiKey": "sk_orb_..."
-}
+## Architecture
+
+```
+src/
+  cli.ts           # Command definitions (Commander.js)
+  api.ts           # API client, formatters
+  extractors.ts    # Raw API response → structured ProfileDetails
+  types.ts         # TypeScript types for all data models
+  commands/
+    search.ts      # orbit search
+    profile.ts     # orbit profile
+    lookup.ts      # orbit lookup (search + profile)
+    connections.ts # orbit connections
+    compare.ts     # orbit compare
+    me.ts          # orbit me
+    login.ts       # orbit login
+  utils/
+    config.ts      # ~/.orbit-cli/config.json management
 ```
 
 ## Requirements
