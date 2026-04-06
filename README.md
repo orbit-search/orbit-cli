@@ -252,6 +252,23 @@ src/
     config.ts      # ~/.orbit-cli/config.json management
 ```
 
+## Documentation
+
+Full docs are in the `docs/` directory, built with [Docusaurus](https://docusaurus.io).
+
+```bash
+cd docs
+npm install
+npm start       # Dev server at localhost:3000
+npm run build   # Static build in docs/build/
+```
+
+Docs cover:
+- **CLI Reference** — every command with examples and output samples
+- **API Reference** — endpoints, auth, request/response formats
+- **Guides** — search patterns, scripting & piping, agent integration
+- **Data Model** — full TypeScript type reference
+
 ## Requirements
 
 - Node.js >= 18
