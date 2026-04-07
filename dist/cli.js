@@ -5,6 +5,7 @@ import { profileCommand } from "./commands/profile.js";
 import { lookupCommand } from "./commands/lookup.js";
 import { connectionsCommand } from "./commands/connections.js";
 import { compareCommand } from "./commands/compare.js";
+import { sectionCommand } from "./commands/sections.js";
 import { meCommand } from "./commands/me.js";
 import { loginCommand } from "./commands/login.js";
 import { loadConfig } from "./utils/config.js";
@@ -64,6 +65,15 @@ program
     .option("-j, --json", "Output structured JSON")
     .action(async (a, b, options) => {
     await compareCommand(a, b, { json: options.json });
+});
+program
+    .command("get")
+    .description("Get a specific section of a profile (work, sources, facts, connections, etc.)")
+    .argument("<userId>", "User ID (UUID)")
+    .argument("<section>", "Section: bio, work, education, accomplishments, controversies, passions, personal, qualities, worldview, social, connections, sources, facts, skills, locations")
+    .option("-j, --json", "Output structured JSON")
+    .action(async (userId, section, options) => {
+    await sectionCommand(userId, section, { json: options.json });
 });
 program
     .command("me")

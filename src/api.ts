@@ -86,12 +86,15 @@ export async function searchPeople(query: string, numResults = 6): Promise<Searc
   }));
 }
 
-export async function getProfile(userId: string): Promise<ProfileDetails> {
-  // Profile endpoint uses different auth — don't send API key in Authorization header
-  const response = await fetchJson(
+export async function getRawProfile(userId: string): Promise<unknown> {
+  return fetchJson(
     `${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`,
     { method: "GET", headers: getBaseHeaders() }
   );
+}
+
+export async function getProfile(userId: string): Promise<ProfileDetails> {
+  const response = await getRawProfile(userId);
   const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
   return extractDetailedProfile(socialProfile, orbitFirstDegree, userId);
 }

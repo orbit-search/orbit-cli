@@ -72,9 +72,11 @@ export async function searchPeople(query, numResults = 6) {
         matchReason: parseMatchReason(u.matchReason),
     }));
 }
+export async function getRawProfile(userId) {
+    return fetchJson(`${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders() });
+}
 export async function getProfile(userId) {
-    // Profile endpoint uses different auth — don't send API key in Authorization header
-    const response = await fetchJson(`${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders() });
+    const response = await getRawProfile(userId);
     const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
     return extractDetailedProfile(socialProfile, orbitFirstDegree, userId);
 }
