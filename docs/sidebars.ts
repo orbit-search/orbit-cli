@@ -14,6 +14,7 @@ const sidebars: SidebarsConfig = {
         'cli/profile',
         'cli/connections',
         'cli/compare',
+        'cli/get',
         'cli/me',
       ],
     },
