@@ -8,24 +8,24 @@ Single TypeScript/Node.js project with two entrypoints:
 1. **CLI** (`orbit`) — shell command for searching people
 2. **MCP Server** — Streamable HTTP MCP server for tool integration
 
-## API Backends
+## API Surface
 
-### 1. Deep Search API (`https://deep-search.orbitsearch.com`)
-- **Auth:** `x-api-key: 3d29e5d7-55a2-4ccb-bbe1-caa241d7d2d2` header
-- **Profile Search:** `POST /v1/people/profiles/search` — search stored profiles by name
-  - Body: `{"person_name": "...", "age": 23}` (age optional, used for ranking)
-  - Returns: `{"success": true, "profiles": [{"orbit_id": "...", "name": "...", "age": 50, "location": "CA", "mobile_phone": "...", ...}]}`
-- **Full Orbit Profile:** `GET /v1/people/profile/orbit/{orbit_id}` 
-  - Returns: Full profile with jobs, schools, fun_facts, social_profiles, search_engine_results, phone_numbers, email_addresses, historical_addresses, linkedin_profile_url, etc.
-- **Trigger Deep Search:** `POST /v2/people/search/deep/light`
-  - Body: `{"person_name": "First Last", "phone": "+1234", "level2_urls": ["https://x.com/handle"], "origin": "cli", "is_sync_mode": false, "do_enrich": true}`
-  - Returns: `{"search_id": "...", "job_id": "..."}` (async)
-- **Search Status:** `GET /v1/people/search/{search_id}/status`
-- **Search Response:** `GET /v1/people/search/{search_id}/response`
+### 1. Orbit Public API (`https://api.orbitsearch.com`)
+- Use only documented Orbit API endpoints. Do not hard-code service-specific hosts, undocumented endpoint names, or raw credentials in the CLI.
+- Treat the published Orbit API schema as the source of truth for endpoint paths, request fields, response fields, and identifier mapping. This file describes CLI behavior, not the full API reference.
+- **Auth:** use the Orbit API credentials provided by the deployment environment or user config.
+- **Profile Search:** use the documented profile search endpoint to search stored profiles by name.
+  - Input: name plus optional ranking/filter hints such as age or location.
+  - Returns: matching profiles with a stable public `profileId` plus display fields.
+- **Full Orbit Profile:** fetch the public profile through the documented profile endpoint using the stable profile identifier.
+- **Profile Enrichment:** use the documented background enrichment endpoint for profiles that are not already available.
+  - Input: name plus optional phone and source URL hints, using the field names from the published API schema.
+  - Returns: async job identifiers from the documented response schema.
+- **Search Status / Response:** when the CLI is asked to wait, poll the documented status endpoint client-side, then fetch the documented response endpoint when complete.
 
-### 2. Social Profile API (`https://api.orbitsearch.com`)
-- **Auth:** Headers: `app-id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d`, `app-version: 1.0.0`
-- **Profile by UUID:** `GET /v2/social/profiles/users/{userId}?sortImagesAsOrbit=true&showFirstOrbit=true`
+### 2. Profile Details API (`https://api.orbitsearch.com`)
+- **Auth:** use the app credentials provided by the deployment environment or user config.
+- **Profile by ID:** `GET /v2/social/profiles/users/{profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`
 - **Profile by Username:** `GET /v2/social/profiles/usernames/{username}`
 - Returns rich AI-generated data:
   ```
@@ -45,20 +45,20 @@ Single TypeScript/Node.js project with two entrypoints:
   }
   payload.socialProfile.socialMediaHandles = [{media, handle}]
   payload.socialProfile.orbitSources = [{link, title, sourceName}]
-  payload.orbitFirstDegree = {users: [{senditId, fullName}]}
+  payload.orbitFirstDegree = {users: [{profileId, fullName}]}
   ```
-- **Smart Search (internal):** `POST /v2/social/profiles/searches/smart/internal`
-  - Auth: `api-key: b64e0e40-556f-488d-a416-f5841b0811e8` header (note: header name is `api-key`, NOT `sendit-api-key`)
-  - Body: `{"query": "...", "userId": "5181db5e-e761-472d-9e0e-98af519bc974", "numUsers": 6, "isManualInput": true}`
-  - Returns: `{status: "success", payload: {users: [{userId, matchReason}]}}`
-  - NOTE: This endpoint may return 500 due to server-side dependency issues. Treat as optional/fallback.
+- **Natural Language Search:** use the documented authenticated search endpoint.
+  - Body: `{"query": "...", "profileId": "<requesting-profile-id>", "numUsers": 6, "isManualInput": true}`
+  - Resolve `profileId` from the authenticated session when available; otherwise read it from user config.
+  - Returns: `{status: "success", payload: {users: [{profileId, matchReason}]}}`
+  - Treat this as optional/fallback when unavailable.
 
 ## CLI Commands
 
 ### `orbit search <query>`
 Search for people by name. This is the primary command.
-1. First, search deep-search profiles: `POST /v1/people/profiles/search`
-2. For top results (up to 3), fetch rich social profile via 2020 API using sendit_id
+1. First, search stored Orbit profiles through the Orbit API.
+2. For top results (up to 3), fetch rich profile details using the stable profile identifier.
 3. Output a clean, token-efficient summary
 
 Options:
@@ -68,10 +68,10 @@ Options:
 - `--age <n>` — filter/rank by age
 - `--location <state>` — filter hint
 
-### `orbit profile <orbit_id_or_sendit_id>`
+### `orbit profile <profile_id_or_username>`
 Get full profile for a specific person.
-1. If orbit_id (from deep-search), fetch both orbit profile AND social profile
-2. If sendit_id (UUID from social API), fetch social profile directly
+1. If a profile ID is provided, fetch the corresponding profile directly.
+2. If a username is provided, resolve it through the profile API first.
 3. Output comprehensive profile data
 
 Options:
@@ -80,14 +80,15 @@ Options:
 - `--brief` — one-paragraph summary only
 - `--sources` — include source URLs
 
-### `orbit deep-search <name>`
-Trigger a new deep search for someone not in the system.
+### `orbit enrich <name>`
+Trigger a background profile enrichment for someone not in the system.
 - `--phone <number>` — phone number (improves accuracy)
 - `--twitter <handle>` — Twitter/X handle
 - `--wait` — poll until complete (with progress)
+- Keep existing enrichment command aliases as hidden compatibility aliases until the next major release.
 
 ### `orbit smart-search <natural_language_query>`
-Natural language search via the smart search API.
+Natural language search via the Orbit API.
 - Example: `orbit smart-search "Stanford engineers who worked at Google"`
 - Falls back gracefully if the endpoint is unavailable.
 
@@ -126,8 +127,10 @@ Expose the same functionality as MCP tools via Streamable HTTP transport.
 ### Tools:
 1. **`search_people`** — Search by name, returns list of matching profiles with key details
 2. **`get_profile`** — Get full profile by ID
-3. **`deep_search`** — Trigger new deep search
+3. **`enrich_profile`** — Trigger background profile enrichment
 4. **`smart_search`** — Natural language search (optional, may be unavailable)
+
+Keep existing enrichment tool aliases wired to the same handler as hidden compatibility aliases until the next major release.
 
 ### Server config:
 - Default port: 3847
@@ -144,13 +147,13 @@ orbit-cli/
 │   ├── cli.ts              # CLI entrypoint (uses commander or similar)
 │   ├── mcp-server.ts       # MCP server entrypoint
 │   ├── api/
-│   │   ├── deep-search.ts  # Deep Search API client
-│   │   ├── social-api.ts   # 2020 Social Profile API client
+│   │   ├── orbit-api.ts    # Orbit API client
+│   │   ├── profile-api.ts  # Profile details API client
 │   │   └── types.ts        # Shared types
 │   ├── commands/
 │   │   ├── search.ts       # search command
 │   │   ├── profile.ts      # profile command
-│   │   ├── deep-search.ts  # deep-search command
+│   │   ├── enrich.ts       # enrichment command
 │   │   └── smart-search.ts # smart-search command
 │   └── utils/
 │       ├── formatter.ts    # Output formatting (text, json, brief)
@@ -166,17 +169,15 @@ Support env vars AND a config file at `~/.orbit-cli/config.json`:
 
 ```json
 {
-  "deepSearchApiKey": "3d29e5d7-55a2-4ccb-bbe1-caa241d7d2d2",
-  "deepSearchHost": "https://deep-search.orbitsearch.com",
-  "socialApiHost": "https://api.orbitsearch.com",
-  "socialApiAppId": "0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d",
-  "socialApiAppVersion": "1.0.0",
-  "socialApiKey": "b64e0e40-556f-488d-a416-f5841b0811e8",
-  "serviceUserId": "5181db5e-e761-472d-9e0e-98af519bc974"
+  "orbitApiHost": "https://api.orbitsearch.com",
+  "orbitApiKey": "<configured at install time>",
+  "appId": "<provided by Orbit>",
+  "appVersion": "1.0.0",
+  "requestingProfileId": "<current-user-profile-id>"
 }
 ```
 
-Also support env vars: `ORBIT_DEEP_SEARCH_API_KEY`, `ORBIT_SOCIAL_API_KEY`, etc.
+Also support env vars: `ORBIT_API_KEY`, `ORBIT_APP_ID`, `ORBIT_APP_VERSION`, `ORBIT_REQUESTING_PROFILE_ID`, etc.
 
 ## Technical Requirements
 
@@ -191,14 +192,13 @@ Also support env vars: `ORBIT_DEEP_SEARCH_API_KEY`, `ORBIT_SOCIAL_API_KEY`, etc.
 ## Key Design Principles
 
 1. **Token efficiency** — Default output should be compact. An AI agent reading the output should get maximum info with minimum tokens.
-2. **Graceful degradation** — If social API is down, still return deep-search data. If smart search 500s, say so clearly.
-3. **Fast** — Search existing profiles first, only trigger deep search when explicitly asked.
+2. **Graceful degradation** — If enriched profile details are unavailable, still return the stored profile data. If natural language search is unavailable, say so clearly.
+3. **Fast** — Search existing profiles first, only trigger enrichment when explicitly asked.
 4. **Composable** — Each command can output JSON for piping into other tools.
 
 ## Important Notes
 
-- The `sendit_id` field from deep-search profiles is the `userId` used to query the social API
-- Not all profiles have a sendit_id — some are deep-search only
-- The social API profile endpoint doesn't require auth for GET requests (just app-id/app-version headers)
-- Deep search API always requires `x-api-key` header
-- Smart search internal endpoint requires `api-key` header (different from deep search key!)
+- Use stable public profile identifiers when linking between commands.
+- `profileId` is the public profile identifier used across search results, profile fetches, connection lists, and natural-language search matches.
+- Not all profile records have every enrichment field available.
+- Do not embed raw credentials, undocumented endpoints, or implementation-specific service names in output or generated config.
