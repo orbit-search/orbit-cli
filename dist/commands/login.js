@@ -79,6 +79,7 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExisting
         missingAppId: !appId && !clearAppId && !config.appId,
         clearedRequesterProfileId,
         clearedAppMetadata: clearAppId && hadAppMetadata,
+        clearedAppIdNoOp: clearAppId && !hadAppMetadata,
     };
 }
 function findOpenPort() {
@@ -116,6 +117,9 @@ function appMetadataNote(result) {
     }
     if (result.clearedAppMetadata) {
         return "Saved app metadata and request context were removed.";
+    }
+    if (result.clearedAppIdNoOp) {
+        return "No saved app metadata to clear.";
     }
     if (result.missingAppId) {
         return "No app metadata is configured. If your API access includes an app ID, pass --app-id or set ORBIT_APP_ID.";

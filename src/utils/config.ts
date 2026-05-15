@@ -39,8 +39,11 @@ function stripTrailingSlash(value: string): string {
 }
 
 function resolveAppVersion(envVersion?: string, fileVersion?: string): string {
-  const version = envVersion ?? fileVersion ?? DEFAULT_APP_VERSION;
-  return version === "" ? DEFAULT_APP_VERSION : version;
+  const version = envVersion ?? fileVersion;
+  if (!version || version === "") {
+    return DEFAULT_APP_VERSION;
+  }
+  return version;
 }
 
 export function loadConfig(): OrbitConfig {
