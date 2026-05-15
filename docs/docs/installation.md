@@ -60,6 +60,6 @@ You can also save both values in one command:
 orbit login --key sk_orb_your_key --app-id <provided-app-id> --app-version 1.0.0
 ```
 
-When rotating a key, `orbit login --key ...` keeps existing app metadata. Pass `--app-id` to replace it, `--app-version` to pin a version with the new app ID, or `--clear-app-id` to remove app metadata.
+When rotating a key, `orbit login --key ...` keeps existing app metadata and clears saved request context if the key changes. Pass `--app-id` to replace app metadata, `--app-version` to pin a version with the new app ID, or `--clear-app-id` to remove both app metadata and saved request context.
 
 If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.

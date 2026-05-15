@@ -43,7 +43,7 @@ If your API access requires app metadata, add it to the same config file:
 The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
 You can set `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of editing the config file.
 For custom environments, set `ORBIT_API_HOST` or add `orbitApiHost` to the config file.
-When rotating a key, `orbit login --key ...` keeps existing app metadata. Pass `--app-id` to replace it, `--app-version` to pin a version with the new app ID, or `--clear-app-id` to remove app metadata.
+When rotating a key, `orbit login --key ...` keeps existing app metadata and clears saved request context if the key changes. Pass `--app-id` to replace app metadata, `--app-version` to pin a version with the new app ID, or `--clear-app-id` to remove both app metadata and saved request context.
 If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.
 
 ### Check Status

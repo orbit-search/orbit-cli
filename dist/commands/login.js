@@ -24,9 +24,15 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
     }
     const hadRequesterProfileId = Boolean(config.requestingProfileId);
     const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
+    const previousApiKey = typeof config.apiKey === "string"
+        ? config.apiKey
+        : typeof config.orbitApiKey === "string"
+            ? config.orbitApiKey
+            : undefined;
     const previousAppId = typeof config.appId === "string" ? config.appId : undefined;
     const hadAppVersion = Boolean(config.appVersion);
     let clearedAppVersion = false;
+    let clearedRequesterProfileId = false;
     config.apiKey = apiKey;
     delete config.orbitApiKey;
     if (appId) {
@@ -39,11 +45,17 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
             clearedAppVersion = true;
         }
         delete config.requestingProfileId;
+        clearedRequesterProfileId = hadRequesterProfileId;
     }
     else if (clearAppId) {
         delete config.appId;
         delete config.appVersion;
         delete config.requestingProfileId;
+        clearedRequesterProfileId = hadRequesterProfileId;
+    }
+    else if (previousApiKey !== apiKey && hadRequesterProfileId) {
+        delete config.requestingProfileId;
+        clearedRequesterProfileId = true;
     }
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
     return {
@@ -52,7 +64,7 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
         clearedAppVersion,
         keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
         missingAppId: !appId && !clearAppId && !config.appId && !process.env.ORBIT_APP_ID,
-        clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
+        clearedRequesterProfileId,
         clearedAppMetadata: clearAppId && hadAppMetadata,
     };
 }
@@ -83,10 +95,13 @@ function appMetadataNote(result) {
         return `App metadata was saved with this key.${versionNote}${requesterNote}`;
     }
     if (result.keptExistingAppId) {
-        return "Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.";
+        const requesterNote = result.clearedRequesterProfileId
+            ? " Saved request context was cleared because the API key changed."
+            : "";
+        return `Existing app metadata was kept.${requesterNote} Pass --app-id to replace it or --clear-app-id to remove it.`;
     }
     if (result.clearedAppMetadata) {
-        return "Saved app metadata was removed.";
+        return "Saved app metadata and request context were removed.";
     }
     if (result.missingAppId) {
         return "No app metadata is configured. If your API access includes an app ID, pass --app-id or set ORBIT_APP_ID.";
