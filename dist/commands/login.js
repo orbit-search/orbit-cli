@@ -25,11 +25,6 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
     }
     const hadRequesterProfileId = Boolean(config.requestingProfileId);
     const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
-    const previousApiKey = typeof config.apiKey === "string"
-        ? config.apiKey
-        : typeof config.orbitApiKey === "string"
-            ? config.orbitApiKey
-            : undefined;
     const previousAppId = typeof config.appId === "string" ? config.appId : undefined;
     const hadAppVersion = Boolean(config.appVersion);
     let clearedAppVersion = false;
@@ -54,7 +49,7 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
         delete config.requestingProfileId;
         clearedRequesterProfileId = hadRequesterProfileId;
     }
-    else if (previousApiKey !== apiKey && hadRequesterProfileId) {
+    else if (hadRequesterProfileId) {
         delete config.requestingProfileId;
         clearedRequesterProfileId = true;
     }
@@ -97,7 +92,7 @@ function appMetadataNote(result) {
     }
     if (result.keptExistingAppId) {
         const requesterNote = result.clearedRequesterProfileId
-            ? " Saved request context was cleared because the API key changed."
+            ? " Saved request context was cleared during login."
             : "";
         return `Existing app metadata was kept.${requesterNote} Pass --app-id to replace it or --clear-app-id to remove it.`;
     }

@@ -44,7 +44,7 @@ curl -X POST https://api.orbitsearch.com/v2/social/profiles/searches/smart/sse \
   -d '{"query": "Jane Smith", "numUsers": 1, "isManualInput": true}'
 
 # Profile (no auth needed)
-curl "https://api.orbitsearch.com/v2/social/profiles/users/{userId}?sortImagesAsOrbit=true&showFirstOrbit=true" \
+curl "https://api.orbitsearch.com/v2/social/profiles/users/{profileId}?sortImagesAsOrbit=true&showFirstOrbit=true" \
   -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0"
 ```
