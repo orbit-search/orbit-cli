@@ -30,7 +30,13 @@ interface SaveApiKeyResult {
   clearedAppMetadata: boolean;
 }
 
-function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAppId = false): SaveApiKeyResult {
+function saveApiKey(
+  apiKey: string,
+  appId?: string,
+  appVersion?: string,
+  clearAppId = false,
+  reuseExistingAppId = false
+): SaveApiKeyResult {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
@@ -60,8 +66,10 @@ function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAp
       delete config.appVersion;
       clearedAppVersion = true;
     }
-    delete config.requestingProfileId;
-    clearedRequesterProfileId = hadRequesterProfileId;
+    if (previousAppId !== appId) {
+      delete config.requestingProfileId;
+      clearedRequesterProfileId = hadRequesterProfileId;
+    }
   } else if (clearAppId) {
     delete config.appId;
     delete config.appVersion;
@@ -74,10 +82,10 @@ function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAp
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
 
   return {
-    savedAppId: Boolean(appId),
+    savedAppId: Boolean(appId && !reuseExistingAppId),
     savedAppVersion: Boolean(appId && appVersion),
     clearedAppVersion,
-    keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
+    keptExistingAppId: (!appId && !clearAppId && Boolean(config.appId)) || reuseExistingAppId,
     missingAppId: !appId && !clearAppId && !config.appId,
     clearedRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
@@ -111,10 +119,11 @@ function appMetadataNote(result: SaveApiKeyResult): string | null {
     return `App metadata was saved with this key.${versionNote}${requesterNote}`;
   }
   if (result.keptExistingAppId) {
+    const versionNote = result.savedAppVersion ? " App version was saved." : "";
     const requesterNote = result.clearedRequesterProfileId
       ? " Saved request context was cleared during login."
       : "";
-    return `Existing app metadata was kept.${requesterNote} Pass --app-id to replace it or --clear-app-id to remove it.`;
+    return `Existing app metadata was kept.${versionNote}${requesterNote} Pass --app-id to replace it or --clear-app-id to remove it.`;
   }
   if (result.clearedAppMetadata) {
     return "Saved app metadata and request context were removed.";
@@ -131,7 +140,7 @@ function showSavedKey(apiKey: string, result: SaveApiKeyResult): void {
   p.outro(`Authenticated — ${apiKey.slice(0, 12)}...`);
 }
 
-async function loginWithKey(appId?: string, appVersion?: string, clearAppId = false): Promise<void> {
+async function loginWithKey(appId?: string, appVersion?: string, clearAppId = false, reuseExistingAppId = false): Promise<void> {
   const key = await p.text({
     message: "Paste your API key",
     placeholder: "sk_orb_...",
@@ -146,10 +155,16 @@ async function loginWithKey(appId?: string, appVersion?: string, clearAppId = fa
     process.exit(0);
   }
 
-  showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId));
+  showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId));
 }
 
-async function loginWithBrowser(host: string, appId?: string, appVersion?: string, clearAppId = false): Promise<void> {
+async function loginWithBrowser(
+  host: string,
+  appId?: string,
+  appVersion?: string,
+  clearAppId = false,
+  reuseExistingAppId = false
+): Promise<void> {
   const port = await findOpenPort();
   const state = randomBytes(16).toString("hex");
   const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -180,7 +195,7 @@ async function loginWithBrowser(host: string, appId?: string, appVersion?: strin
       }
 
       callbackReceived = true;
-      const saveResult = saveApiKey(key, appId, appVersion, clearAppId);
+      const saveResult = saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId);
 
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("OK");
@@ -235,13 +250,16 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     p.cancel("Use either --app-id or --clear-app-id, not both.");
     process.exit(1);
   }
+  let appId = options.appId;
+  let reuseExistingAppId = false;
   if (options.appVersion && !options.appId) {
     const existingAppId = loadConfig().appId;
     if (!existingAppId) {
       p.cancel("Use --app-version only together with --app-id.");
       process.exit(1);
     }
-    options.appId = existingAppId;
+    appId = existingAppId;
+    reuseExistingAppId = true;
   }
 
   // Non-interactive: direct key input via flag
@@ -250,7 +268,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
       p.cancel("Invalid API key format. Keys should start with sk_orb_");
       process.exit(1);
     }
-    showSavedKey(options.key, saveApiKey(options.key, options.appId, options.appVersion, options.clearAppId));
+    showSavedKey(options.key, saveApiKey(options.key, appId, options.appVersion, options.clearAppId, reuseExistingAppId));
     return;
   }
 
@@ -272,8 +290,8 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   }
 
   if (method === "key") {
-    await loginWithKey(options.appId, options.appVersion, options.clearAppId);
+    await loginWithKey(appId, options.appVersion, options.clearAppId, reuseExistingAppId);
   } else {
-    await loginWithBrowser(host, options.appId, options.appVersion, options.clearAppId);
+    await loginWithBrowser(host, appId, options.appVersion, options.clearAppId, reuseExistingAppId);
   }
 }
