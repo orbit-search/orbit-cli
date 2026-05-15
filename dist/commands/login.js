@@ -197,6 +197,10 @@ export async function loginCommand(options) {
         p.cancel("Use either --app-id or --clear-app-id, not both.");
         process.exit(1);
     }
+    if (options.appVersion && options.clearAppId) {
+        p.cancel("Use either --app-version or --clear-app-id, not both.");
+        process.exit(1);
+    }
     let appId = options.appId;
     let reuseExistingAppId = false;
     if (options.appVersion && !options.appId) {
