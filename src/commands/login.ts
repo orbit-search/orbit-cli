@@ -44,8 +44,7 @@ function saveApiKey(
   appId?: string,
   appVersion?: string,
   clearAppId = false,
-  reuseExistingAppId = false,
-  useEnvAppIdForVersion = false
+  reuseExistingAppId = false
 ): SaveApiKeyResult {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
@@ -62,6 +61,12 @@ function saveApiKey(
 
   const hadRequesterProfileId = Boolean(config.requestingProfileId);
   const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
+  const previousApiKey =
+    typeof config.apiKey === "string"
+      ? config.apiKey
+      : typeof config.orbitApiKey === "string"
+        ? config.orbitApiKey
+        : undefined;
   const previousAppId = typeof config.appId === "string" ? config.appId : undefined;
   const hadAppVersion = Boolean(config.appVersion);
   let clearedAppVersion = false;
@@ -76,12 +81,10 @@ function saveApiKey(
       delete config.appVersion;
       clearedAppVersion = true;
     }
-    if (previousAppId !== appId) {
+    if (previousAppId !== appId || previousApiKey !== apiKey) {
       delete config.requestingProfileId;
       clearedRequesterProfileId = hadRequesterProfileId;
     }
-  } else if (appVersion && useEnvAppIdForVersion) {
-    config.appVersion = appVersion;
   } else if (clearAppId) {
     delete config.appId;
     delete config.appVersion;
@@ -95,10 +98,10 @@ function saveApiKey(
 
   return {
     savedAppId: Boolean(appId && !reuseExistingAppId),
-    savedAppVersion: Boolean((appId || useEnvAppIdForVersion) && appVersion),
+    savedAppVersion: Boolean(appId && appVersion),
     clearedAppVersion,
-    keptExistingAppId: (!appId && !clearAppId && Boolean(config.appId)) || reuseExistingAppId || useEnvAppIdForVersion,
-    missingAppId: !appId && !clearAppId && !config.appId && !useEnvAppIdForVersion,
+    keptExistingAppId: (!appId && !clearAppId && Boolean(config.appId)) || reuseExistingAppId,
+    missingAppId: !appId && !clearAppId && !config.appId,
     clearedRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
   };
@@ -156,8 +159,7 @@ async function loginWithKey(
   appId?: string,
   appVersion?: string,
   clearAppId = false,
-  reuseExistingAppId = false,
-  useEnvAppIdForVersion = false
+  reuseExistingAppId = false
 ): Promise<void> {
   const key = await p.text({
     message: "Paste your API key",
@@ -173,7 +175,7 @@ async function loginWithKey(
     process.exit(0);
   }
 
-  showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId, useEnvAppIdForVersion));
+  showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId));
 }
 
 async function loginWithBrowser(
@@ -181,8 +183,7 @@ async function loginWithBrowser(
   appId?: string,
   appVersion?: string,
   clearAppId = false,
-  reuseExistingAppId = false,
-  useEnvAppIdForVersion = false
+  reuseExistingAppId = false
 ): Promise<void> {
   const port = await findOpenPort();
   const state = randomBytes(16).toString("hex");
@@ -214,7 +215,7 @@ async function loginWithBrowser(
       }
 
       callbackReceived = true;
-      const saveResult = saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
+      const saveResult = saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId);
 
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("OK");
@@ -275,14 +276,14 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   }
   let appId = options.appId;
   let reuseExistingAppId = false;
-  let useEnvAppIdForVersion = false;
   if (options.appVersion && !options.appId) {
     const existingAppId = readSavedAppId();
     if (existingAppId) {
       appId = existingAppId;
       reuseExistingAppId = true;
     } else if (process.env.ORBIT_APP_ID) {
-      useEnvAppIdForVersion = true;
+      p.cancel("Set ORBIT_APP_VERSION when ORBIT_APP_ID is configured via environment, or pass --app-id to save app metadata.");
+      process.exit(1);
     } else {
       p.cancel("Use --app-version only together with --app-id.");
       process.exit(1);
@@ -295,7 +296,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
       p.cancel("Invalid API key format. Keys should start with sk_orb_");
       process.exit(1);
     }
-    showSavedKey(options.key, saveApiKey(options.key, appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion));
+    showSavedKey(options.key, saveApiKey(options.key, appId, options.appVersion, options.clearAppId, reuseExistingAppId));
     return;
   }
 
@@ -317,8 +318,8 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   }
 
   if (method === "key") {
-    await loginWithKey(appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
+    await loginWithKey(appId, options.appVersion, options.clearAppId, reuseExistingAppId);
   } else {
-    await loginWithBrowser(host, appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
+    await loginWithBrowser(host, appId, options.appVersion, options.clearAppId, reuseExistingAppId);
   }
 }
