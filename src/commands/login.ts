@@ -45,6 +45,7 @@ function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApi
   delete config.orbitApiKey;
   if (appId) {
     config.appId = appId;
+    delete config.requestingProfileId;
   } else if (clearAppId) {
     delete config.appId;
     delete config.appVersion;
@@ -55,7 +56,7 @@ function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApi
   return {
     savedAppId: Boolean(appId),
     keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
-    clearedRequesterProfileId: clearAppId && hadRequesterProfileId,
+    clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
   };
 }

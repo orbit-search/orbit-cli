@@ -28,6 +28,7 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     delete config.orbitApiKey;
     if (appId) {
         config.appId = appId;
+        delete config.requestingProfileId;
     }
     else if (clearAppId) {
         delete config.appId;
@@ -38,7 +39,7 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     return {
         savedAppId: Boolean(appId),
         keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
-        clearedRequesterProfileId: clearAppId && hadRequesterProfileId,
+        clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
         clearedAppMetadata: clearAppId && hadAppMetadata,
     };
 }
