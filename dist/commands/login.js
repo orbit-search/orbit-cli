@@ -23,8 +23,15 @@ function saveApiKey(apiKey, appId) {
         }
     }
     config.apiKey = apiKey;
-    if (appId)
+    delete config.orbitApiKey;
+    delete config.requestingProfileId;
+    if (appId) {
         config.appId = appId;
+    }
+    else {
+        delete config.appId;
+        delete config.appVersion;
+    }
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
 }
 function findOpenPort() {
