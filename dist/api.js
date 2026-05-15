@@ -21,7 +21,11 @@ function getAuthHeaders(config) {
     }
     return headers;
 }
-function buildApiErrorMessage(action, status, statusText, bodyText, config) {
+function buildApiErrorMessage(action, status, statusText, bodyText, config, authenticated = false) {
+    if (authenticated && status === 401) {
+        const detail = bodyText || statusText;
+        return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY. ${detail}`;
+    }
     if (!config.appId && (status === 401 || status === 403)) {
         const detail = bodyText || statusText;
         return `${action} failed (${status}): this API access may require app metadata. Set ORBIT_APP_ID or add appId to ~/.orbit-cli/config.json, then retry. ${detail}`;
@@ -33,11 +37,11 @@ function requireApiKey(config, action) {
         throw new Error(`${action} requires Orbit API credentials. Run \`orbit login\` or set ORBIT_API_KEY.`);
     }
 }
-async function fetchJson(url, init, config, action = "Request") {
+async function fetchJson(url, init, config, action = "Request", authenticated = false) {
     const response = await fetch(url, init);
     if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config));
+        throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config, authenticated));
     }
     return response.json();
 }
@@ -60,7 +64,7 @@ export async function searchPeople(query, numResults = 6) {
     });
     if (!response.ok) {
         const bodyText = await response.text().catch(() => "");
-        throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config));
+        throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config, true));
     }
     const rawUsers = parseSSEResponse(await response.text());
     return rawUsers.map(normalizeSearchUser).filter((u) => u !== null);
@@ -92,7 +96,7 @@ export async function getMyProfile() {
     const response = await fetchJson(`${config.apiHost}/v1/profile`, {
         method: "GET",
         headers: getAuthHeaders(config),
-    }, config, "Authentication check");
+    }, config, "Authentication check", true);
     const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
     if (!profileId)
         throw new Error("Could not determine your profile ID. Is your API key valid?");

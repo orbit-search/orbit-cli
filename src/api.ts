@@ -30,8 +30,14 @@ function buildApiErrorMessage(
   status: number,
   statusText: string,
   bodyText: string,
-  config: OrbitConfig
+  config: OrbitConfig,
+  authenticated = false
 ): string {
+  if (authenticated && status === 401) {
+    const detail = bodyText || statusText;
+    return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY. ${detail}`;
+  }
+
   if (!config.appId && (status === 401 || status === 403)) {
     const detail = bodyText || statusText;
     return `${action} failed (${status}): this API access may require app metadata. Set ORBIT_APP_ID or add appId to ~/.orbit-cli/config.json, then retry. ${detail}`;
@@ -46,11 +52,17 @@ function requireApiKey(config: OrbitConfig, action: string): void {
   }
 }
 
-async function fetchJson(url: string, init: RequestInit, config: OrbitConfig, action = "Request"): Promise<unknown> {
+async function fetchJson(
+  url: string,
+  init: RequestInit,
+  config: OrbitConfig,
+  action = "Request",
+  authenticated = false
+): Promise<unknown> {
   const response = await fetch(url, init);
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config));
+    throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config, authenticated));
   }
   return response.json();
 }
@@ -77,7 +89,7 @@ export async function searchPeople(query: string, numResults = 6): Promise<Searc
 
   if (!response.ok) {
     const bodyText = await response.text().catch(() => "");
-    throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config));
+    throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config, true));
   }
 
   const rawUsers = parseSSEResponse(await response.text());
@@ -121,7 +133,7 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   const response = await fetchJson(`${config.apiHost}/v1/profile`, {
     method: "GET",
     headers: getAuthHeaders(config),
-  }, config, "Authentication check") as { status: string; payload?: { user?: { id?: string; profileId?: string } } };
+  }, config, "Authentication check", true) as { status: string; payload?: { user?: { id?: string; profileId?: string } } };
 
   const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
   if (!profileId) throw new Error("Could not determine your profile ID. Is your API key valid?");
