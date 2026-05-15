@@ -68,7 +68,7 @@ function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAp
     savedAppVersion: Boolean(appId && appVersion),
     clearedAppVersion: Boolean(appId && !appVersion && hadAppVersion),
     keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
-    missingAppId: !appId && !clearAppId && !config.appId,
+    missingAppId: !appId && !clearAppId && !config.appId && !process.env.ORBIT_APP_ID,
     clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
   };
