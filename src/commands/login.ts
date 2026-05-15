@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { exec as execCb } from "node:child_process";
 import * as p from "@clack/prompts";
+import { loadConfig } from "../utils/config.js";
 
 const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -241,8 +242,12 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     process.exit(1);
   }
   if (options.appVersion && !options.appId) {
-    p.cancel("Use --app-version only together with --app-id.");
-    process.exit(1);
+    const existingAppId = loadConfig().appId;
+    if (!existingAppId) {
+      p.cancel("Use --app-version only together with --app-id.");
+      process.exit(1);
+    }
+    options.appId = existingAppId;
   }
 
   // Non-interactive: direct key input via flag
