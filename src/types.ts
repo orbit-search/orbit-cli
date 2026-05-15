@@ -7,7 +7,7 @@ export type JsonRecord = Record<string, unknown>;
 export type ApiProfileResponse = {
   status: string;
   payload: {
-    profileId?: string;
+    userId?: string;
     orbitId?: string;
     socialProfile: ApiSocialProfile;
     orbitFirstDegree?: ApiOrbitFirstDegree;

@@ -213,7 +213,7 @@ function firstDegree(data: ApiOrbitFirstDegree | undefined): ProfileDetails["orb
   const connections: ProfileDetails["orbitFirstDegree"] = [];
   for (const u of data.users) {
     // Normalize legacy upstream identifier names to the public profileId used by CLI output.
-    const profileId = stringField(u, "profileId") ?? stringField(u, "senditId") ?? stringField(u, "userId");
+    const profileId = stringField(u, "profileId") ?? stringField(u, "senditId") ?? stringField(u, "sendit_id") ?? stringField(u, "userId");
     if (!profileId) continue;
     connections.push({
       profileId,

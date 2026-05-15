@@ -176,9 +176,9 @@ The app ID is issued with API access. If a user has an API key but no app ID, te
 ## Identifier Mapping
 
 - CLI and future MCP output must use `profileId` as the stable public identifier.
-- Direct REST API docs and examples must preserve the published upstream field names. Some endpoints still use `userId` as the path parameter or response field, and some nested relationship records still expose `senditId`.
-- Normalize `userId` and `senditId` to `profileId` only inside CLI extraction/output code. Do not rewrite direct REST API response examples to claim the upstream payload returns `profileId` unless the live API schema changes.
-- Some payloads expose `orbitId`/`orbit_id` as a public slug or legacy source identifier. Do not use it as the profile fetch path value unless that endpoint explicitly documents it as the canonical profile UUID; otherwise keep it as metadata and derive CLI `profileId` from `profileId`, `senditId`, or `userId`.
+- Direct REST API docs and examples must preserve the published upstream field names. Some endpoints still use `userId` as the path parameter or response field, and some nested relationship records still expose `senditId` or `sendit_id`.
+- Normalize `userId`, `senditId`, and `sendit_id` to `profileId` only inside CLI extraction/output code. Do not rewrite direct REST API response examples to claim the upstream payload returns `profileId` unless the live API schema changes.
+- Some payloads expose `orbitId`/`orbit_id` as a public slug or legacy source identifier. Do not use it as the profile fetch path value unless that endpoint explicitly documents it as the canonical profile UUID; otherwise keep it as metadata and derive CLI `profileId` from `profileId`, `senditId`, `sendit_id`, or `userId`.
 - `orbitFirstDegree.users[].senditId` in direct REST examples is intentionally an upstream field name; CLI extractors convert it to `orbitFirstDegree[].profileId` before user-facing output.
 - The CLI config field `requestingProfileId` maps to the search request body's published `userId` field when that requester identifier is required.
 
@@ -187,7 +187,7 @@ The app ID is issued with API access. If a user has an API key but no app ID, te
 When editing docs, examples, or command help, keep these mappings together:
 - Profile fetch commands accept `profileId`, but the direct REST path remains `/v2/social/profiles/users/{userId}` until the published API changes.
 - Natural-language search may send the CLI config field `requestingProfileId` as the request body's published `userId`; do not rename the wire field in REST examples.
-- Relationship payloads may contain `senditId`; CLI/MCP output should expose that value as `profileId`.
+- Relationship payloads may contain `senditId` or `sendit_id`; CLI/MCP output should expose that value as `profileId`.
 - Proxy route notes belong only in the repository that owns the proxy. This repo should reference public Orbit API paths or the configurable API host, not wrapper routes from another application.
 
 ## Technical Requirements
