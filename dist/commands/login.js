@@ -24,12 +24,19 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
     }
     const hadRequesterProfileId = Boolean(config.requestingProfileId);
     const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
+    const previousAppId = typeof config.appId === "string" ? config.appId : undefined;
+    const hadAppVersion = Boolean(config.appVersion);
+    let clearedAppVersion = false;
     config.apiKey = apiKey;
     delete config.orbitApiKey;
     if (appId) {
         config.appId = appId;
         if (appVersion) {
             config.appVersion = appVersion;
+        }
+        else if (hadAppVersion && previousAppId !== appId) {
+            delete config.appVersion;
+            clearedAppVersion = true;
         }
         delete config.requestingProfileId;
     }
@@ -42,6 +49,7 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
     return {
         savedAppId: Boolean(appId),
         savedAppVersion: Boolean(appId && appVersion),
+        clearedAppVersion,
         keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
         missingAppId: !appId && !clearAppId && !config.appId && !process.env.ORBIT_APP_ID,
         clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
@@ -67,7 +75,11 @@ function findOpenPort() {
 function appMetadataNote(result) {
     if (result.savedAppId) {
         const requesterNote = result.clearedRequesterProfileId ? " Saved requester profile config was cleared." : "";
-        const versionNote = result.savedAppVersion ? " App version was saved." : "";
+        const versionNote = result.savedAppVersion
+            ? " App version was saved."
+            : result.clearedAppVersion
+                ? " Saved app version was cleared; pass --app-version if this app ID requires a specific version."
+                : "";
         return `App metadata was saved with this key.${versionNote}${requesterNote}`;
     }
     if (result.keptExistingAppId) {
