@@ -19,7 +19,7 @@ function stripTrailingSlash(value) {
     return value.replace(/\/+$/, "");
 }
 function resolveAppVersion(envVersion, fileVersion) {
-    return envVersion || fileVersion || DEFAULT_APP_VERSION;
+    return envVersion ?? fileVersion ?? DEFAULT_APP_VERSION;
 }
 export function loadConfig() {
     const fileConfig = readFileConfig();
