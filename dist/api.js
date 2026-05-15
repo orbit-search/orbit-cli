@@ -16,10 +16,7 @@ function getBaseHeaders(config) {
 }
 function getAuthHeaders(config) {
     const headers = getBaseHeaders(config);
-    // Callers must call requireApiKey() first so authenticated requests never silently omit Authorization.
-    if (config.apiKey) {
-        headers["Authorization"] = `Bearer ${config.apiKey}`;
-    }
+    headers["Authorization"] = `Bearer ${config.apiKey}`;
     return headers;
 }
 function buildApiErrorMessage(action, status, statusText, bodyText, config, authenticated = false) {

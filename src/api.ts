@@ -7,6 +7,8 @@ import { extractDetailedProfile, parseApiResponse } from "./extractors.js";
 import type { OrbitConfig } from "./utils/config.js";
 import type { JsonRecord, ProfileDetails, SearchResult, SourceLink } from "./types.js";
 
+type AuthenticatedOrbitConfig = OrbitConfig & { apiKey: string };
+
 function getBaseHeaders(config: OrbitConfig): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -19,12 +21,9 @@ function getBaseHeaders(config: OrbitConfig): Record<string, string> {
   return headers;
 }
 
-function getAuthHeaders(config: OrbitConfig): Record<string, string> {
+function getAuthHeaders(config: AuthenticatedOrbitConfig): Record<string, string> {
   const headers = getBaseHeaders(config);
-  // Callers must call requireApiKey() first so authenticated requests never silently omit Authorization.
-  if (config.apiKey) {
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
-  }
+  headers["Authorization"] = `Bearer ${config.apiKey}`;
   return headers;
 }
 
@@ -57,7 +56,7 @@ function buildApiErrorMessage(
   return `${action} failed (${status}): ${bodyText || statusText}`;
 }
 
-function requireApiKey(config: OrbitConfig, action: string): void {
+function requireApiKey(config: OrbitConfig, action: string): asserts config is AuthenticatedOrbitConfig {
   if (!config.apiKey) {
     throw new Error(`${action} requires Orbit API credentials. Run \`orbit login\` or set ORBIT_API_KEY.`);
   }

@@ -20,7 +20,7 @@ function readSavedAppId() {
         return undefined;
     }
 }
-function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExistingAppId = false) {
+function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExistingAppId = false, useEnvAppIdForVersion = false) {
     if (!existsSync(CONFIG_DIR)) {
         mkdirSync(CONFIG_DIR, { recursive: true });
     }
@@ -55,6 +55,9 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExisting
             clearedRequesterProfileId = hadRequesterProfileId;
         }
     }
+    else if (appVersion && useEnvAppIdForVersion) {
+        config.appVersion = appVersion;
+    }
     else if (clearAppId) {
         delete config.appId;
         delete config.appVersion;
@@ -68,10 +71,10 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExisting
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
     return {
         savedAppId: Boolean(appId && !reuseExistingAppId),
-        savedAppVersion: Boolean(appId && appVersion),
+        savedAppVersion: Boolean((appId || useEnvAppIdForVersion) && appVersion),
         clearedAppVersion,
-        keptExistingAppId: (!appId && !clearAppId && Boolean(config.appId)) || reuseExistingAppId,
-        missingAppId: !appId && !clearAppId && !config.appId,
+        keptExistingAppId: (!appId && !clearAppId && Boolean(config.appId)) || reuseExistingAppId || useEnvAppIdForVersion,
+        missingAppId: !appId && !clearAppId && !config.appId && !useEnvAppIdForVersion,
         clearedRequesterProfileId,
         clearedAppMetadata: clearAppId && hadAppMetadata,
     };
@@ -123,7 +126,7 @@ function showSavedKey(apiKey, result) {
         p.note(note, "App metadata");
     p.outro(`Authenticated — ${apiKey.slice(0, 12)}...`);
 }
-async function loginWithKey(appId, appVersion, clearAppId = false, reuseExistingAppId = false) {
+async function loginWithKey(appId, appVersion, clearAppId = false, reuseExistingAppId = false, useEnvAppIdForVersion = false) {
     const key = await p.text({
         message: "Paste your API key",
         placeholder: "sk_orb_...",
@@ -138,9 +141,9 @@ async function loginWithKey(appId, appVersion, clearAppId = false, reuseExisting
         p.cancel("Login cancelled.");
         process.exit(0);
     }
-    showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId));
+    showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId, useEnvAppIdForVersion));
 }
-async function loginWithBrowser(host, appId, appVersion, clearAppId = false, reuseExistingAppId = false) {
+async function loginWithBrowser(host, appId, appVersion, clearAppId = false, reuseExistingAppId = false, useEnvAppIdForVersion = false) {
     const port = await findOpenPort();
     const state = randomBytes(16).toString("hex");
     const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -164,7 +167,7 @@ async function loginWithBrowser(host, appId, appVersion, clearAppId = false, reu
                 return;
             }
             callbackReceived = true;
-            const saveResult = saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId);
+            const saveResult = saveApiKey(key, appId, appVersion, clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
             spinner.stop(`Authenticated — ${key.slice(0, 12)}...`);
@@ -213,14 +216,20 @@ export async function loginCommand(options) {
     }
     let appId = options.appId;
     let reuseExistingAppId = false;
+    let useEnvAppIdForVersion = false;
     if (options.appVersion && !options.appId) {
         const existingAppId = readSavedAppId();
-        if (!existingAppId) {
+        if (existingAppId) {
+            appId = existingAppId;
+            reuseExistingAppId = true;
+        }
+        else if (process.env.ORBIT_APP_ID) {
+            useEnvAppIdForVersion = true;
+        }
+        else {
             p.cancel("Use --app-version only together with --app-id.");
             process.exit(1);
         }
-        appId = existingAppId;
-        reuseExistingAppId = true;
     }
     // Non-interactive: direct key input via flag
     if (options.key) {
@@ -228,7 +237,7 @@ export async function loginCommand(options) {
             p.cancel("Invalid API key format. Keys should start with sk_orb_");
             process.exit(1);
         }
-        showSavedKey(options.key, saveApiKey(options.key, appId, options.appVersion, options.clearAppId, reuseExistingAppId));
+        showSavedKey(options.key, saveApiKey(options.key, appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion));
         return;
     }
     const host = options.host || DEFAULT_HOST;
@@ -245,10 +254,10 @@ export async function loginCommand(options) {
         process.exit(0);
     }
     if (method === "key") {
-        await loginWithKey(appId, options.appVersion, options.clearAppId, reuseExistingAppId);
+        await loginWithKey(appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
     }
     else {
-        await loginWithBrowser(host, appId, options.appVersion, options.clearAppId, reuseExistingAppId);
+        await loginWithBrowser(host, appId, options.appVersion, options.clearAppId, reuseExistingAppId, useEnvAppIdForVersion);
     }
 }
 //# sourceMappingURL=login.js.map
