@@ -19,7 +19,9 @@ export interface LoginOptions {
 }
 
 interface SaveApiKeyResult {
+  savedAppId: boolean;
   keptExistingAppId: boolean;
+  clearedRequesterProfileId: boolean;
   clearedAppMetadata: boolean;
 }
 
@@ -37,6 +39,7 @@ function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApi
     }
   }
 
+  const hadRequesterProfileId = Boolean(config.requestingProfileId);
   const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
   config.apiKey = apiKey;
   delete config.orbitApiKey;
@@ -50,7 +53,9 @@ function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApi
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
 
   return {
+    savedAppId: Boolean(appId),
     keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
+    clearedRequesterProfileId: hadRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
   };
 }
@@ -72,11 +77,19 @@ function findOpenPort(): Promise<number> {
 }
 
 function appMetadataNote(result: SaveApiKeyResult): string | null {
+  if (result.savedAppId) {
+    const requesterNote = result.clearedRequesterProfileId ? " Saved requester profile config was cleared." : "";
+    return `App metadata was saved with this key.${requesterNote}`;
+  }
   if (result.keptExistingAppId) {
-    return "Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.";
+    const requesterNote = result.clearedRequesterProfileId ? " Saved requester profile config was cleared." : "";
+    return `Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.${requesterNote}`;
   }
   if (result.clearedAppMetadata) {
     return "Saved app metadata was removed.";
+  }
+  if (result.clearedRequesterProfileId) {
+    return "Saved requester profile config was cleared.";
   }
   return null;
 }

@@ -12,8 +12,10 @@ function getBaseHeaders(config: OrbitConfig): Record<string, string> {
     "Content-Type": "application/json",
   };
   // App metadata is optional for public profile reads; never restore a hardcoded app id.
-  if (config.appId) headers["App-Id"] = config.appId;
-  if (config.appVersion) headers["App-Version"] = config.appVersion;
+  if (config.appId) {
+    headers["App-Id"] = config.appId;
+    if (config.appVersion) headers["App-Version"] = config.appVersion;
+  }
   return headers;
 }
 
