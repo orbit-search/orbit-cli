@@ -4,111 +4,151 @@
 
 import { loadConfig } from "./utils/config.js";
 import { extractDetailedProfile, parseApiResponse } from "./extractors.js";
-import type { ProfileDetails, SearchResult, SearchUser, SourceLink } from "./types.js";
+import type { OrbitConfig } from "./utils/config.js";
+import type { JsonRecord, ProfileDetails, SearchResult, SourceLink } from "./types.js";
 
-const API_HOST = "https://api.orbitsearch.com";
-const APP_ID = "0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d";
-const APP_VERSION = "1.0.0";
+type AuthenticatedOrbitConfig = OrbitConfig & { apiKey: string };
 
-function getBaseHeaders(): Record<string, string> {
-  return {
-    "App-Id": APP_ID,
-    "App-Version": APP_VERSION,
+function getBaseHeaders(config: OrbitConfig): Record<string, string> {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-}
-
-function getAuthHeaders(): Record<string, string> {
-  const config = loadConfig();
-  const headers = getBaseHeaders();
-  if (config.apiKey) {
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
+  // App metadata is optional for public profile reads; never restore a hardcoded app id.
+  if (config.appId) {
+    headers["App-Id"] = config.appId;
+    headers["App-Version"] = config.appVersion;
   }
   return headers;
 }
 
-async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
+function getAuthHeaders(config: AuthenticatedOrbitConfig): Record<string, string> {
+  const headers = getBaseHeaders(config);
+  headers["Authorization"] = `Bearer ${config.apiKey}`;
+  return headers;
+}
+
+function buildApiErrorMessage(
+  action: string,
+  status: number,
+  statusText: string,
+  bodyText: string,
+  config: OrbitConfig,
+  authenticated = false
+): string {
+  if (authenticated && status === 401) {
+    const detail = bodyText || statusText;
+    const appMetadataNote = !config.appId
+      ? " App metadata is also not configured; if your API access requires an app ID, set ORBIT_APP_ID or run `orbit login --app-id <provided-app-id>` after confirming the key is valid."
+      : "";
+    return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY.${appMetadataNote} ${detail}`;
+  }
+
+  if (authenticated && status === 403) {
+    const detail = bodyText || statusText;
+    return `${action} failed (${status}): API credentials are not authorized for this request. Check that the key has the required permissions. ${detail}`;
+  }
+
+  if (!config.appId && (status === 401 || status === 403)) {
+    const detail = bodyText || statusText;
+    return `${action} failed (${status}): app metadata is not configured for this CLI install. If you upgraded from a version that bundled app metadata, run \`orbit login --app-id <provided-app-id>\` or set ORBIT_APP_ID, then retry. ${detail}`;
+  }
+
+  return `${action} failed (${status}): ${bodyText || statusText}`;
+}
+
+function requireApiKey(config: OrbitConfig, action: string): asserts config is AuthenticatedOrbitConfig {
+  if (!config.apiKey) {
+    throw new Error(`${action} requires Orbit API credentials. Run \`orbit login\` or set ORBIT_API_KEY.`);
+  }
+}
+
+async function fetchJson(
+  url: string,
+  init: RequestInit,
+  config: OrbitConfig,
+  action = "Request",
+  authenticated = false
+): Promise<unknown> {
   const response = await fetch(url, init);
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`API error (${response.status}): ${body || response.statusText}`);
+    throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config, authenticated));
   }
   return response.json();
 }
 
 export async function searchPeople(query: string, numResults = 6): Promise<SearchResult[]> {
   const config = loadConfig();
-
-  let rawUsers: RawSearchUser[];
+  requireApiKey(config, "Search");
 
   const timeout = AbortSignal.timeout(60_000);
+  const body = {
+    query,
+    numUsers: numResults,
+    isManualInput: true,
+    // The published search schema names the requester field userId; CLI config exposes it as requestingProfileId.
+    ...(config.requestingProfileId ? { userId: config.requestingProfileId } : {}),
+  };
 
-  if (config.apiKey) {
-    const response = await fetch(`${API_HOST}/v2/social/profiles/searches/smart/sse`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ query, numUsers: numResults, isManualInput: true }),
-      signal: timeout,
-    });
+  const response = await fetch(`${config.apiHost}/v2/social/profiles/searches/smart/sse`, {
+    method: "POST",
+    headers: getAuthHeaders(config),
+    body: JSON.stringify(body),
+    signal: timeout,
+  });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new Error(`Search failed (${response.status}): ${body || response.statusText}`);
-    }
-
-    rawUsers = parseSSEResponse(await response.text());
-  } else {
-    const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
-      method: "POST",
-      headers: {
-        ...getBaseHeaders(),
-        "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
-      },
-      body: JSON.stringify({
-        query,
-        userId: "5181db5e-e761-472d-9e0e-98af519bc974",
-        numUsers: numResults,
-        isManualInput: true,
-      }),
-      signal: timeout,
-    } as RequestInit);
-
-    const res = response as { payload?: { users?: RawSearchUser[] } };
-    rawUsers = res?.payload?.users ?? [];
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config, true));
   }
 
-  return rawUsers.filter(u => u.userId).map(u => ({
-    userId: u.userId,
-    displayName: u.displayName ?? "Unknown",
-    age: typeof u.age === "number" ? u.age : null,
-    city: u.city ?? null,
-    matchReason: parseMatchReason(u.matchReason),
-  }));
+  const rawUsers = parseSSEResponse(await response.text());
+
+  return rawUsers.map(normalizeSearchUser).filter((u): u is SearchResult => u !== null);
 }
 
-export async function getRawProfile(userId: string): Promise<unknown> {
+function normalizeSearchUser(user: RawSearchUser): SearchResult | null {
+  const profileId = getRawProfileId(user);
+  if (!profileId) return null;
+
+  return {
+    profileId,
+    displayName: user.displayName ?? "Unknown",
+    age: typeof user.age === "number" ? user.age : null,
+    city: user.city ?? null,
+    matchReason: parseMatchReason(user.matchReason),
+  };
+}
+
+export async function getRawProfile(profileId: string, config = loadConfig()): Promise<unknown> {
+  // Profile lookup is public, so this intentionally sends app metadata without Authorization.
   return fetchJson(
-    `${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`,
-    { method: "GET", headers: getBaseHeaders() }
+    `${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`,
+    { method: "GET", headers: getBaseHeaders(config) },
+    config,
+    "Profile lookup"
   );
 }
 
-export async function getProfile(userId: string): Promise<ProfileDetails> {
-  const response = await getRawProfile(userId);
+export async function getProfile(profileId: string, config = loadConfig()): Promise<ProfileDetails> {
+  const response = await getRawProfile(profileId, config);
   const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
-  return extractDetailedProfile(socialProfile, orbitFirstDegree, userId);
+  return extractDetailedProfile(socialProfile, orbitFirstDegree, profileId);
 }
 
 export async function getMyProfile(): Promise<ProfileDetails> {
-  const response = await fetchJson(`${API_HOST}/v1/profile`, {
+  const config = loadConfig();
+  requireApiKey(config, "`orbit me`");
+
+  const response = await fetchJson(`${config.apiHost}/v1/profile`, {
     method: "GET",
-    headers: getAuthHeaders(),
-  }) as { status: string; payload?: { user?: { id: string } } };
+    headers: getAuthHeaders(config),
+  }, config, "Authentication check", true) as { status: string; payload?: { user?: { id?: string; profileId?: string } } };
 
-  const userId = response.payload?.user?.id;
-  if (!userId) throw new Error("Could not determine your user ID. Is your API key valid?");
+  const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
+  if (!profileId) throw new Error("Could not determine your profile ID. Is your API key valid?");
 
-  return getProfile(userId);
+  return getProfile(profileId, config);
 }
 
 function srcLine(sources: SourceLink[], max = 5): string | null {
@@ -221,7 +261,7 @@ export function formatProfile(profile: ProfileDetails): string {
     const n = profile.orbitFirstDegree.length;
     l.push("", `CONNECTIONS (${n})`);
     for (const c of profile.orbitFirstDegree.slice(0, 10)) {
-      l.push(`  ${c.fullName} [${c.senditId}]`);
+      l.push(`  ${c.fullName} [${c.profileId}]`);
     }
     if (n > 10) l.push(`  +${n - 10} more`);
   }
@@ -252,13 +292,21 @@ export function formatProfileBrief(profile: ProfileDetails): string {
 
 // ── SSE parsing ──
 
-type RawSearchUser = {
-  userId: string;
+type RawSearchUser = JsonRecord & {
+  profileId?: string;
   displayName?: string;
   age?: number;
   city?: string;
   matchReason?: string | { reason?: string | null };
 };
+
+function getRawProfileId(user: RawSearchUser): string | null {
+  const schemaProfileId = typeof user.profileId === "string" ? user.profileId : null;
+  const schemaSenditId = typeof user["senditId"] === "string" ? user["senditId"] : null;
+  const schemaSnakeSenditId = typeof user["sendit_id"] === "string" ? user["sendit_id"] : null;
+  const schemaUserId = typeof user["userId"] === "string" ? user["userId"] : null;
+  return schemaProfileId ?? schemaSenditId ?? schemaSnakeSenditId ?? schemaUserId;
+}
 
 function parseMatchReason(mr: string | { reason?: string | null } | undefined): string | null {
   if (!mr) return null;
@@ -287,8 +335,11 @@ function parseSSEResponse(text: string): RawSearchUser[] {
             latestUsers = parsed?.payload?.users ?? parsed?.users ?? [];
           } else if (currentEvent === "update" && latestUsers.length > 0) {
             const update = JSON.parse(dataBuffer) as RawSearchUser;
-            const existing = latestUsers.find((u) => u.userId === update.userId);
-            if (existing) existing.matchReason = update.matchReason;
+            const updateProfileId = getRawProfileId(update);
+            if (updateProfileId) {
+              const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
+              if (existing) existing.matchReason = update.matchReason;
+            }
           }
         } catch { /* skip */ }
       }

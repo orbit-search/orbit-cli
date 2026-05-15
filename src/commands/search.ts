@@ -22,7 +22,7 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
         const parts = [r.displayName];
         if (r.age) parts.push(`${r.age}`);
         if (r.city) parts.push(r.city);
-        console.log(`${parts.join(" | ")}  [${r.userId}]`);
+        console.log(`${parts.join(" | ")}  [${r.profileId}]`);
         if (r.matchReason) console.log(`  ${r.matchReason}`);
       }
       if (results.length > 1) {

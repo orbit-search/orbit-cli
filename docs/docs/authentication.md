@@ -4,19 +4,9 @@ sidebar_position: 3
 
 # Authentication
 
-Orbit works in two modes: **anonymous** and **authenticated**.
+Orbit search and `orbit me` require an API key. Profile lookups by profile ID can be used where the public profile endpoint is available.
 
-## Anonymous Mode
-
-Works out of the box. Supports `orbit search` and `orbit profile` using service keys. No setup needed.
-
-Limitations:
-- Search uses a shared service account
-- `orbit me` is not available
-
-## Authenticated Mode
-
-Uses your personal API key for better search results, match reasoning, and access to `orbit me`.
+Anonymous search mode has been removed. Existing installs should run `orbit login` or set `ORBIT_API_KEY`.
 
 ### Get an API Key
 
@@ -32,7 +22,29 @@ orbit login
 
 # Direct — pass key inline
 orbit login --key sk_orb_your_key_here
+
+# Direct — save key and app metadata together
+orbit login --key sk_orb_your_key_here --app-id <provided-app-id> --app-version 1.0.0
+
+# Direct — rotate the key and remove saved app metadata
+orbit login --key sk_orb_your_key_here --clear-app-id
 ```
+
+If your API access requires app metadata, add it to the same config file:
+
+```json
+{
+  "apiKey": "sk_orb_your_key_here",
+  "appId": "<provided-app-id>",
+  "appVersion": "1.0.0"
+}
+```
+
+The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
+You can set `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of editing the config file.
+For custom environments, set `ORBIT_API_HOST` or add `orbitApiHost` to the config file.
+Running `orbit login --key ...` without app metadata flags keeps existing app metadata and clears saved request context if the key changes. Pass `--app-id` to replace app metadata, `--app-version` to pin a version with the saved or new app ID, or `--clear-app-id` to remove both app metadata and saved request context.
+If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.
 
 ### Check Status
 
@@ -46,7 +58,7 @@ orbit whoami
 
 ```bash
 orbit logout
-# ✓ Logged out. API key removed.
+# ✓ Logged out. API key and app metadata removed.
 ```
 
 ## How Auth Works

@@ -4,12 +4,12 @@ sidebar_position: 3
 
 # orbit profile
 
-Get a detailed profile for a person by their user ID.
+Get a detailed profile for a person by their profile ID.
 
 ## Usage
 
 ```bash
-orbit profile <userId> [options]
+orbit profile <profileId> [options]
 ```
 
 ## Options
@@ -78,7 +78,7 @@ CONNECTIONS (50)
 ## Brief Output
 
 ```bash
-orbit profile <userId> --brief
+orbit profile <profileId> --brief
 ```
 
 ```
@@ -107,13 +107,13 @@ Each profile contains these sections (when data is available):
 | Best Qualities | Positive traits |
 | Worldview | Politics, religion, causes |
 | Social | LinkedIn, GitHub, Twitter, Instagram, etc. |
-| Connections | First-degree connections with user IDs |
+| Connections | First-degree connections with profile IDs |
 
 Each section that has data includes `src:` lines with source URLs (deduped by domain, max 5).
 
-## Getting User IDs
+## Getting Profile IDs
 
-User IDs come from:
+Profile IDs come from:
 - `orbit search` results (shown in brackets)
 - `orbit connections` output
 - `orbit me --json` (your own ID)

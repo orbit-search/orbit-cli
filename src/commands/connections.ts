@@ -5,15 +5,15 @@ export interface ConnectionsOptions {
   limit?: number;
 }
 
-export async function connectionsCommand(userId: string, options: ConnectionsOptions): Promise<void> {
+export async function connectionsCommand(profileId: string, options: ConnectionsOptions): Promise<void> {
   try {
-    const profile = await getProfile(userId);
+    const profile = await getProfile(profileId);
     const conns = profile.orbitFirstDegree;
     const limit = options.limit ?? conns.length;
     const shown = conns.slice(0, limit);
 
     if (conns.length === 0) {
-      console.log(`No connections found for ${profile.displayName ?? userId}.`);
+      console.log(`No connections found for ${profile.displayName ?? profileId}.`);
       return;
     }
 
@@ -22,7 +22,7 @@ export async function connectionsCommand(userId: string, options: ConnectionsOpt
     } else {
       console.log(`${profile.displayName ?? "Unknown"} — ${conns.length} connections\n`);
       for (const c of shown) {
-        console.log(`  ${c.fullName}  [${c.senditId}]`);
+        console.log(`  ${c.fullName}  [${c.profileId}]`);
       }
       if (limit < conns.length) {
         console.log(`\n  ... ${conns.length - limit} more (use --limit to show more)`);

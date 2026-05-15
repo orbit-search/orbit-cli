@@ -5,9 +5,9 @@ export interface ProfileOptions {
   brief?: boolean;
 }
 
-export async function profileCommand(userId: string, options: ProfileOptions): Promise<void> {
+export async function profileCommand(profileId: string, options: ProfileOptions): Promise<void> {
   try {
-    const profile = await getProfile(userId);
+    const profile = await getProfile(profileId);
 
     if (options.json) {
       console.log(JSON.stringify(profile, null, 2));

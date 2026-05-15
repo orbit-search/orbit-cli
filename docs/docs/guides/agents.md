@@ -37,15 +37,15 @@ For agents that prefer HTTP:
 ```bash
 # Search
 curl -X POST https://api.orbitsearch.com/v2/social/profiles/searches/smart/sse \
-  -H "App-Id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d" \
+  -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0" \
   -H "Authorization: Bearer sk_orb_..." \
   -H "Content-Type: application/json" \
   -d '{"query": "Jane Smith", "numUsers": 1, "isManualInput": true}'
 
 # Profile (no auth needed)
-curl "https://api.orbitsearch.com/v2/social/profiles/users/{userId}?sortImagesAsOrbit=true&showFirstOrbit=true" \
-  -H "App-Id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d" \
+curl "https://api.orbitsearch.com/v2/social/profiles/users/{profileId}?sortImagesAsOrbit=true&showFirstOrbit=true" \
+  -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0"
 ```
 
@@ -56,7 +56,7 @@ Orbit is available as an MCP server for agents that support the Model Context Pr
 ```bash
 # Via mcporter
 mcporter call orbit.search_people query="lawyers in San Francisco"
-mcporter call orbit.get_profile userId="<uuid>"
+mcporter call orbit.get_profile profileId="<uuid>"
 mcporter call orbit.me
 ```
 
@@ -84,11 +84,11 @@ An agent maps the network around a person:
 orbit lookup "Mark Zuckerberg" --json > target.json
 
 # Get their connections
-USER_ID=$(cat target.json | jq -r '.userId')
-orbit connections $USER_ID --json > connections.json
+PROFILE_ID=$(cat target.json | jq -r '.profileId')
+orbit connections $PROFILE_ID --json > connections.json
 
 # Profile interesting connections
-cat connections.json | jq -r '.[].senditId' | head -5 | while read id; do
+cat connections.json | jq -r '.[].profileId' | head -5 | while read id; do
   orbit profile $id --brief
 done
 ```

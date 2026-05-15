@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Profiles API
 
-Get a full profile for any person by user ID.
+Get a full profile for any person by API user ID.
 
 ## Endpoint
 
@@ -134,6 +134,8 @@ Each section has an `items` array and a `sources` array. Each item:
 }
 ```
 
+The direct API exposes the nested connection identifier as `senditId`. CLI output normalizes that value to `profileId`.
+
 ### `orbitSources`
 
 Web sources the profile was built from:
@@ -152,7 +154,7 @@ Web sources the profile was built from:
 
 ```bash
 curl "https://api.orbitsearch.com/v2/social/profiles/users/a7b7449d-3b89-4bf1-95fc-183e831f31cc?sortImagesAsOrbit=true&showFirstOrbit=true" \
-  -H "App-Id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d" \
+  -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0"
 ```
 
@@ -162,7 +164,7 @@ curl "https://api.orbitsearch.com/v2/social/profiles/users/a7b7449d-3b89-4bf1-95
 GET /v1/profile
 ```
 
-**Requires authentication.** Returns the authenticated user's basic info including their `userId`, which you can then use with the profile endpoint above.
+**Requires authentication.** Returns the authenticated user's basic info including their `id` or `profileId`, which you can then use with the profile endpoint above.
 
 ```json
 {

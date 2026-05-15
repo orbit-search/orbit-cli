@@ -32,13 +32,17 @@ orbit lookup "Mark Zuckerberg"
 
 # Authenticate for better results
 orbit login --key sk_orb_your_key_here
+# Add app metadata too when provided with your API access
+orbit login --key sk_orb_your_key_here --app-id <provided-app-id> --app-version 1.0.0
+# Remove saved app metadata during key rotation
+orbit login --key sk_orb_your_key_here --clear-app-id
 orbit me
 ```
 
 ## Next Steps
 
 - [Installation](/installation) — setup and requirements
-- [Authentication](/authentication) — API keys and auth modes
+- [Authentication](/authentication) — API keys and app metadata
 - [CLI Reference](/cli/search) — all commands
 - [API Reference](/api/overview) — HTTP endpoints
 - [Search Patterns](/guides/search-patterns) — get the most out of search

@@ -43,7 +43,7 @@ function extractAllSources(raw: any): { url: string; name: string }[] {
   }));
 }
 
-export async function sectionCommand(userId: string, section: string, options: SectionOptions): Promise<void> {
+export async function sectionCommand(profileId: string, section: string, options: SectionOptions): Promise<void> {
   if (!VALID_SECTIONS.includes(section as SectionName)) {
     console.error(`Unknown section: ${section}`);
     console.error(`Valid sections: ${VALID_SECTIONS.join(", ")}`);
@@ -53,7 +53,7 @@ export async function sectionCommand(userId: string, section: string, options: S
   try {
     // For facts and sources we need raw API response
     if (section === "facts" || section === "sources") {
-      const raw = await getRawProfile(userId);
+      const raw = await getRawProfile(profileId);
 
       if (section === "facts") {
         const facts = extractFunFacts(raw);
@@ -91,7 +91,7 @@ export async function sectionCommand(userId: string, section: string, options: S
     }
 
     // Everything else from parsed profile
-    const profile = await getProfile(userId);
+    const profile = await getProfile(profileId);
 
     const sectionData: Record<SectionName, () => unknown> = {
       bio: () => ({ bio: profile.bio, sources: profile.bioSources }),
@@ -122,7 +122,7 @@ export async function sectionCommand(userId: string, section: string, options: S
     if (section === "connections") {
       const conns = data as typeof profile.orbitFirstDegree;
       if (conns.length === 0) { console.log("No connections."); return; }
-      for (const c of conns) console.log(`${c.fullName}  [${c.senditId}]`);
+      for (const c of conns) console.log(`${c.fullName}  [${c.profileId}]`);
       console.log(`\n${conns.length} connections`);
     } else if (section === "work") {
       const jobs = data as typeof profile.jobs;

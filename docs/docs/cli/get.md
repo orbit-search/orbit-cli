@@ -9,7 +9,7 @@ Extract a specific section from a profile. Useful for targeted data retrieval wi
 ## Usage
 
 ```bash
-orbit get <userId> <section> [options]
+orbit get <profileId> <section> [options]
 ```
 
 ## Options
@@ -32,7 +32,7 @@ orbit get <userId> <section> [options]
 | `qualities` | Best qualities / positive traits |
 | `worldview` | Politics, religion, causes |
 | `social` | Social media handles |
-| `connections` | First-degree connections with user IDs |
+| `connections` | First-degree connections with profile IDs |
 | `sources` | All web sources the profile was built from |
 | `facts` | All fun facts, grouped by category with source citations |
 | `skills` | Technical and professional skills |
@@ -105,7 +105,7 @@ EARLY LIFE (1)
 ```json
 [
   {
-    "senditId": "00a08c0e-e773-4f11-88bf-fd3092ecc721",
+    "profileId": "00a08c0e-e773-4f11-88bf-fd3092ecc721",
     "fullName": "Garrison R Magyar",
     "avatarUrl": "https://...",
     "link": "https://orbitsearch.com/00a08c0e-..."
@@ -117,7 +117,7 @@ EARLY LIFE (1)
 
 ```bash
 # Get all connection IDs, then batch profile them
-orbit get <id> connections --json | jq -r '.[].senditId' | xargs -I {} orbit profile {} --brief
+orbit get <id> connections --json | jq -r '.[].profileId' | xargs -I {} orbit profile {} --brief
 
 # Get all source URLs
 orbit get <id> sources --json | jq -r '.[].url'

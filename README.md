@@ -24,18 +24,35 @@ orbit me
 
 ## Authentication
 
-**Anonymous mode** works out of the box — basic search and profile lookups.
-
-**Authenticated mode** gives you better search results and access to `orbit me`:
+Authentication is required for search and `orbit me`. Profile lookups by profile ID can be used where the public profile endpoint is available:
 
 ```bash
 orbit login                          # Interactive (browser or paste key)
 orbit login --key sk_orb_your_key    # Direct key input
+orbit login --key sk_orb_your_key --app-id <provided-app-id> --app-version 1.0.0
+orbit login --key sk_orb_your_key --clear-app-id
 orbit whoami                         # Check auth status
-orbit logout                         # Remove key
+orbit logout                         # Remove key and app metadata
 ```
 
 API keys are stored at `~/.orbit-cli/config.json`.
+
+Anonymous search mode has been removed. Existing installs should run `orbit login` or set `ORBIT_API_KEY`; profile lookups by ID remain available where the public profile endpoint allows them.
+
+Some API environments also require app metadata. Existing installs can add it without changing their API key:
+
+```json
+{
+  "apiKey": "sk_orb_your_key",
+  "appId": "<provided-app-id>",
+  "appVersion": "1.0.0"
+}
+```
+
+The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
+You can use `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of config-file fields.
+Running `orbit login --key ...` without app metadata flags keeps existing app metadata and clears saved request context if the key changes. Pass `--app-id` to replace app metadata, `--app-version` to pin a version with the saved or new app ID, or `--clear-app-id` to remove both app metadata and saved request context.
+If an upgraded install is missing required app metadata, API calls fail with setup instructions instead of falling back to a bundled default.
 
 ## Commands
 
@@ -56,7 +73,7 @@ orbit search "query" --limit 3          # Cap results
 orbit search "query" --json             # Structured output
 ```
 
-Returns: name, age, city, match reason, and user ID for each result.
+Returns: name, age, city, match reason, and profile ID for each result.
 
 ### `orbit lookup <query>`
 
@@ -70,9 +87,9 @@ orbit lookup "Mark Zuckerberg" --json
 
 This is the fastest way to go from a name to a full profile.
 
-### `orbit profile <userId>`
+### `orbit profile <profileId>`
 
-Full profile by user ID (UUID from search results or connections).
+Full profile by profile ID (UUID from search results or connections).
 
 ```bash
 orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc
@@ -80,9 +97,9 @@ orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc --brief
 orbit profile a7b7449d-3b89-4bf1-95fc-183e831f31cc --json
 ```
 
-### `orbit connections <userId>`
+### `orbit connections <profileId>`
 
-List all first-degree connections for a person. Each connection includes their user ID so you can chain into `orbit profile`.
+List all first-degree connections for a person. Each connection includes their profile ID so you can chain into `orbit profile`.
 
 ```bash
 orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc
@@ -90,13 +107,13 @@ orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc --limit 20
 orbit connections a7b7449d-3b89-4bf1-95fc-183e831f31cc --json
 ```
 
-### `orbit compare <userIdA> <userIdB>`
+### `orbit compare <profileIdA> <profileIdB>`
 
 Side-by-side comparison of two people. Shows shared connections, companies, schools, and skills.
 
 ```bash
-orbit compare <userId1> <userId2>
-orbit compare <userId1> <userId2> --json
+orbit compare <profileId1> <profileId2>
+orbit compare <profileId1> <profileId2> --json
 ```
 
 ### `orbit me`
@@ -150,7 +167,7 @@ linkedin: nicholas-dominici-110b4a178 | github: NicholasDominici | snapchat: nic
 **`--json`** — Full structured data for programmatic use:
 ```bash
 orbit profile <id> --json | jq '.jobs'
-orbit search "query" --json | jq '.[0].userId'
+orbit search "query" --json | jq '.[0].profileId'
 orbit connections <id> --json | jq '.[].fullName'
 ```
 
@@ -206,18 +223,18 @@ orbit search "people into rock climbing in Colorado"
 The CLI is designed for composability:
 
 ```bash
-# Search → get first user ID → full profile
-orbit search "Sam Altman" --first --json | jq -r '.[0].userId' | xargs orbit profile
+# Search → get first profile ID → full profile
+orbit search "Sam Altman" --first --json | jq -r '.[0].profileId' | xargs orbit profile
 
 # Get all connection IDs
-orbit connections <id> --json | jq -r '.[].senditId'
+orbit connections <id> --json | jq -r '.[].profileId'
 
 # Batch profile lookups
-orbit connections <id> --json | jq -r '.[].senditId' | head -5 | xargs -I {} orbit profile {} --brief
+orbit connections <id> --json | jq -r '.[].profileId' | head -5 | xargs -I {} orbit profile {} --brief
 
 # Compare yourself to someone
-ME=$(orbit me --json | jq -r '.userId')
-orbit compare $ME <otherUserId>
+ME=$(orbit me --json | jq -r '.profileId')
+orbit compare $ME <otherProfileId>
 ```
 
 ## API Endpoints
@@ -226,11 +243,11 @@ The CLI hits these Orbit API endpoints:
 
 | Command | Endpoint |
 |---|---|
-| `search` | `POST /v2/social/profiles/searches/smart/sse` (authenticated) or `/smart/internal` (anonymous) |
-| `profile` | `GET /v2/social/profiles/users/{userId}` |
-| `me` | `GET /v1/profile` → resolves userId → profile endpoint |
+| `search` | `POST /v2/social/profiles/searches/smart/sse` |
+| `profile` | `GET /v2/social/profiles/users/{userId}` using the CLI `profileId` value |
+| `me` | `GET /v1/profile` → resolves profileId → profile endpoint |
 
-All requests include `App-Id` and `App-Version` headers. Authenticated requests add `Authorization: Bearer sk_orb_...`.
+Requests include configured app metadata headers when present. Authenticated requests also add the configured Orbit authorization token.
 
 ## Architecture
 
