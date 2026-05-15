@@ -94,9 +94,6 @@ function appMetadataNote(result: SaveApiKeyResult): string | null {
   if (result.missingAppId) {
     return "No app metadata is configured. If your API access includes an app ID, pass --app-id or set ORBIT_APP_ID.";
   }
-  if (result.clearedRequesterProfileId) {
-    return "Saved requester profile config was cleared.";
-  }
   return null;
 }
 
