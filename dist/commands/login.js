@@ -9,7 +9,7 @@ const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 const DEFAULT_HOST = "https://orbitsearch.com";
 const CALLBACK_TIMEOUT_MS = 300_000;
-function saveApiKey(apiKey) {
+function saveApiKey(apiKey, appId) {
     if (!existsSync(CONFIG_DIR)) {
         mkdirSync(CONFIG_DIR, { recursive: true });
     }
@@ -23,6 +23,8 @@ function saveApiKey(apiKey) {
         }
     }
     config.apiKey = apiKey;
+    if (appId)
+        config.appId = appId;
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
 }
 function findOpenPort() {
@@ -41,7 +43,7 @@ function findOpenPort() {
         srv.on("error", reject);
     });
 }
-async function loginWithKey() {
+async function loginWithKey(appId) {
     const key = await p.text({
         message: "Paste your API key",
         placeholder: "sk_orb_...",
@@ -56,10 +58,10 @@ async function loginWithKey() {
         p.cancel("Login cancelled.");
         process.exit(0);
     }
-    saveApiKey(key);
+    saveApiKey(key, appId);
     p.outro(`Authenticated — ${key.slice(0, 12)}...`);
 }
-async function loginWithBrowser(host) {
+async function loginWithBrowser(host, appId) {
     const port = await findOpenPort();
     const state = randomBytes(16).toString("hex");
     const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -83,7 +85,7 @@ async function loginWithBrowser(host) {
                 return;
             }
             callbackReceived = true;
-            saveApiKey(key);
+            saveApiKey(key, appId);
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
             spinner.stop(`Authenticated — ${key.slice(0, 12)}...`);
@@ -124,7 +126,7 @@ export async function loginCommand(options) {
             p.cancel("Invalid API key format. Keys should start with sk_orb_");
             process.exit(1);
         }
-        saveApiKey(options.key);
+        saveApiKey(options.key, options.appId);
         p.outro(`Authenticated — ${options.key.slice(0, 12)}...`);
         return;
     }
@@ -142,10 +144,10 @@ export async function loginCommand(options) {
         process.exit(0);
     }
     if (method === "key") {
-        await loginWithKey();
+        await loginWithKey(options.appId);
     }
     else {
-        await loginWithBrowser(host);
+        await loginWithBrowser(host, options.appId);
     }
 }
 //# sourceMappingURL=login.js.map

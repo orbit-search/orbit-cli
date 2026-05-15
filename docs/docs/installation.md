@@ -52,3 +52,11 @@ Config is stored at `~/.orbit-cli/config.json`:
 
 This file is created automatically when you run `orbit login`.
 Some API environments also require app metadata. Existing installs can add `appId` or set `ORBIT_APP_ID` without changing their API key.
+
+You can also save both values in one command:
+
+```bash
+orbit login --key sk_orb_your_key --app-id <provided-app-id>
+```
+
+If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.

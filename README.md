@@ -29,6 +29,7 @@ Authentication is required for search and `orbit me`. Profile lookups by profile
 ```bash
 orbit login                          # Interactive (browser or paste key)
 orbit login --key sk_orb_your_key    # Direct key input
+orbit login --key sk_orb_your_key --app-id <provided-app-id>
 orbit whoami                         # Check auth status
 orbit logout                         # Remove key
 ```
@@ -48,6 +49,7 @@ Some API environments also require app metadata. Existing installs can add it wi
 ```
 
 You can use `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of config-file fields.
+If an upgraded install is missing required app metadata, API calls fail with setup instructions instead of falling back to a bundled default.
 
 ## Commands
 

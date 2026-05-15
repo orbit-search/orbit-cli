@@ -14,9 +14,10 @@ const CALLBACK_TIMEOUT_MS = 300_000;
 export interface LoginOptions {
   key?: string;
   host?: string;
+  appId?: string;
 }
 
-function saveApiKey(apiKey: string): void {
+function saveApiKey(apiKey: string, appId?: string): void {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
@@ -31,6 +32,7 @@ function saveApiKey(apiKey: string): void {
   }
 
   config.apiKey = apiKey;
+  if (appId) config.appId = appId;
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
 }
 
@@ -50,7 +52,7 @@ function findOpenPort(): Promise<number> {
   });
 }
 
-async function loginWithKey(): Promise<void> {
+async function loginWithKey(appId?: string): Promise<void> {
   const key = await p.text({
     message: "Paste your API key",
     placeholder: "sk_orb_...",
@@ -65,11 +67,11 @@ async function loginWithKey(): Promise<void> {
     process.exit(0);
   }
 
-  saveApiKey(key);
+  saveApiKey(key, appId);
   p.outro(`Authenticated — ${key.slice(0, 12)}...`);
 }
 
-async function loginWithBrowser(host: string): Promise<void> {
+async function loginWithBrowser(host: string, appId?: string): Promise<void> {
   const port = await findOpenPort();
   const state = randomBytes(16).toString("hex");
   const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -100,7 +102,7 @@ async function loginWithBrowser(host: string): Promise<void> {
       }
 
       callbackReceived = true;
-      saveApiKey(key);
+      saveApiKey(key, appId);
 
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("OK");
@@ -153,7 +155,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
       p.cancel("Invalid API key format. Keys should start with sk_orb_");
       process.exit(1);
     }
-    saveApiKey(options.key);
+    saveApiKey(options.key, options.appId);
     p.outro(`Authenticated — ${options.key.slice(0, 12)}...`);
     return;
   }
@@ -176,8 +178,8 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   }
 
   if (method === "key") {
-    await loginWithKey();
+    await loginWithKey(options.appId);
   } else {
-    await loginWithBrowser(host);
+    await loginWithBrowser(host, options.appId);
   }
 }

@@ -4,19 +4,9 @@ sidebar_position: 3
 
 # Authentication
 
-Orbit works in two modes: **anonymous** and **authenticated**.
+Orbit search and `orbit me` require an API key. Profile lookups by profile ID can be used where the public profile endpoint is available.
 
-## Anonymous Mode
-
-Works out of the box. Supports `orbit search` and `orbit profile` using service keys. No setup needed.
-
-Limitations:
-- Search uses a shared service account
-- `orbit me` is not available
-
-## Authenticated Mode
-
-Uses your personal API key for better search results, match reasoning, and access to `orbit me`.
+Anonymous search mode has been removed. Existing installs should run `orbit login` or set `ORBIT_API_KEY`.
 
 ### Get an API Key
 
@@ -32,6 +22,9 @@ orbit login
 
 # Direct — pass key inline
 orbit login --key sk_orb_your_key_here
+
+# Direct — save key and app metadata together
+orbit login --key sk_orb_your_key_here --app-id <provided-app-id>
 ```
 
 If your API access requires app metadata, add it to the same config file:
@@ -45,6 +38,7 @@ If your API access requires app metadata, add it to the same config file:
 ```
 
 You can set `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of editing the config file.
+If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.
 
 ### Check Status
 

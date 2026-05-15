@@ -21,11 +21,18 @@ function getAuthHeaders(config) {
     }
     return headers;
 }
-async function fetchJson(url, init) {
+function buildApiErrorMessage(action, status, statusText, bodyText, config) {
+    if (!config.appId && (status === 401 || status === 403)) {
+        const detail = bodyText || statusText;
+        return `${action} failed (${status}): this API access may require app metadata. Set ORBIT_APP_ID or add appId to ~/.orbit-cli/config.json, then retry. ${detail}`;
+    }
+    return `${action} failed (${status}): ${bodyText || statusText}`;
+}
+async function fetchJson(url, init, config, action = "Request") {
     const response = await fetch(url, init);
     if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new Error(`API error (${response.status}): ${body || response.statusText}`);
+        throw new Error(buildApiErrorMessage(action, response.status, response.statusText, body, config));
     }
     return response.json();
 }
@@ -50,7 +57,7 @@ export async function searchPeople(query, numResults = 6) {
     });
     if (!response.ok) {
         const bodyText = await response.text().catch(() => "");
-        throw new Error(`Search failed (${response.status}): ${bodyText || response.statusText}`);
+        throw new Error(buildApiErrorMessage("Search", response.status, response.statusText, bodyText, config));
     }
     const rawUsers = parseSSEResponse(await response.text());
     return rawUsers.map(normalizeSearchUser).filter((u) => u !== null);
@@ -69,7 +76,7 @@ function normalizeSearchUser(user) {
 }
 export async function getRawProfile(profileId) {
     const config = loadConfig();
-    return fetchJson(`${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders(config) });
+    return fetchJson(`${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders(config) }, config, "Profile lookup");
 }
 export async function getProfile(profileId) {
     const response = await getRawProfile(profileId);
@@ -81,7 +88,7 @@ export async function getMyProfile() {
     const response = await fetchJson(`${config.apiHost}/v1/profile`, {
         method: "GET",
         headers: getAuthHeaders(config),
-    });
+    }, config, "Authentication check");
     const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
     if (!profileId)
         throw new Error("Could not determine your profile ID. Is your API key valid?");
