@@ -88,13 +88,12 @@ function normalizeSearchUser(user) {
         matchReason: parseMatchReason(user.matchReason),
     };
 }
-export async function getRawProfile(profileId) {
-    const config = loadConfig();
+export async function getRawProfile(profileId, config = loadConfig()) {
     // Profile lookup is public, so this intentionally sends app metadata without Authorization.
     return fetchJson(`${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders(config) }, config, "Profile lookup");
 }
-export async function getProfile(profileId) {
-    const response = await getRawProfile(profileId);
+export async function getProfile(profileId, config = loadConfig()) {
+    const response = await getRawProfile(profileId, config);
     const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
     return extractDetailedProfile(socialProfile, orbitFirstDegree, profileId);
 }
@@ -108,7 +107,7 @@ export async function getMyProfile() {
     const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
     if (!profileId)
         throw new Error("Could not determine your profile ID. Is your API key valid?");
-    return getProfile(profileId);
+    return getProfile(profileId, config);
 }
 function srcLine(sources, max = 5) {
     if (sources.length === 0)

@@ -25,7 +25,7 @@ export function loadConfig() {
         apiHost: stripTrailingSlash(apiHost),
         apiKey: process.env.ORBIT_API_KEY ?? fileConfig.apiKey ?? fileConfig.orbitApiKey,
         appId: process.env.ORBIT_APP_ID ?? fileConfig.appId,
-        appVersion: process.env.ORBIT_APP_VERSION ?? fileConfig.appVersion ?? DEFAULT_APP_VERSION,
+        appVersion: process.env.ORBIT_APP_VERSION || fileConfig.appVersion || DEFAULT_APP_VERSION,
         requestingProfileId: process.env.ORBIT_REQUESTING_PROFILE_ID ?? fileConfig.requestingProfileId,
     };
 }

@@ -120,8 +120,7 @@ function normalizeSearchUser(user: RawSearchUser): SearchResult | null {
   };
 }
 
-export async function getRawProfile(profileId: string): Promise<unknown> {
-  const config = loadConfig();
+export async function getRawProfile(profileId: string, config = loadConfig()): Promise<unknown> {
   // Profile lookup is public, so this intentionally sends app metadata without Authorization.
   return fetchJson(
     `${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`,
@@ -131,8 +130,8 @@ export async function getRawProfile(profileId: string): Promise<unknown> {
   );
 }
 
-export async function getProfile(profileId: string): Promise<ProfileDetails> {
-  const response = await getRawProfile(profileId);
+export async function getProfile(profileId: string, config = loadConfig()): Promise<ProfileDetails> {
+  const response = await getRawProfile(profileId, config);
   const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
   return extractDetailedProfile(socialProfile, orbitFirstDegree, profileId);
 }
@@ -149,7 +148,7 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
   if (!profileId) throw new Error("Could not determine your profile ID. Is your API key valid?");
 
-  return getProfile(profileId);
+  return getProfile(profileId, config);
 }
 
 function srcLine(sources: SourceLink[], max = 5): string | null {
