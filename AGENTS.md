@@ -185,7 +185,7 @@ The app ID is issued with API access. If a user has an API key but no app ID, te
 
 When editing docs, examples, or command help, keep these mappings together:
 - Profile fetch commands accept `profileId`, but the direct REST path remains `/v2/social/profiles/users/{userId}` until the published API changes.
-- Natural-language search may send the CLI config field `requestingProfileId` as the request body's published `userId`; do not rename the wire field in REST examples.
+- Natural-language search may send the CLI config field `requestingProfileId` as the request body's published `userId`; do not rename the wire field in REST examples. Search result identifiers must be normalized with the same `profileId`, `senditId`, `sendit_id`, then `userId` fallback order before passing them to profile-fetch commands.
 - Relationship payloads may contain `senditId` or `sendit_id`; CLI/MCP output should expose that value as `profileId`.
 - Proxy route notes belong only in the repository that owns the proxy. This repo should reference public Orbit API paths or the configurable API host, not wrapper routes from another application.
 
@@ -210,7 +210,7 @@ When editing docs, examples, or command help, keep these mappings together:
 
 - Use stable public profile identifiers when linking between commands.
 - `profileId` is the public profile identifier used across search results, profile fetches, connection lists, and natural-language search matches.
-- Normalize existing API response identifier fields such as `userId` or `senditId` to `profileId` before exposing CLI or MCP output.
+- Normalize existing API response identifier fields such as `userId`, `senditId`, or `sendit_id` to `profileId` before exposing CLI or MCP output.
 - Anonymous search mode is intentionally removed; users must authenticate with `orbit login` or `ORBIT_API_KEY` for search.
 - Not all profile records have every enrichment field available.
 - Do not embed raw credentials, undocumented endpoints, or implementation-specific service names in output or generated config.

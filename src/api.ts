@@ -302,8 +302,10 @@ type RawSearchUser = JsonRecord & {
 
 function getRawProfileId(user: RawSearchUser): string | null {
   const schemaProfileId = typeof user.profileId === "string" ? user.profileId : null;
+  const schemaSenditId = typeof user["senditId"] === "string" ? user["senditId"] : null;
+  const schemaSnakeSenditId = typeof user["sendit_id"] === "string" ? user["sendit_id"] : null;
   const schemaUserId = typeof user["userId"] === "string" ? user["userId"] : null;
-  return schemaProfileId ?? schemaUserId;
+  return schemaProfileId ?? schemaSenditId ?? schemaSnakeSenditId ?? schemaUserId;
 }
 
 function parseMatchReason(mr: string | { reason?: string | null } | undefined): string | null {
