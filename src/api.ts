@@ -21,6 +21,7 @@ function getBaseHeaders(config: OrbitConfig): Record<string, string> {
 
 function getAuthHeaders(config: OrbitConfig): Record<string, string> {
   const headers = getBaseHeaders(config);
+  // Callers must call requireApiKey() first so authenticated requests never silently omit Authorization.
   if (config.apiKey) {
     headers["Authorization"] = `Bearer ${config.apiKey}`;
   }
