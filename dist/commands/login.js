@@ -28,6 +28,7 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     delete config.orbitApiKey;
     if (appId) {
         config.appId = appId;
+        delete config.appVersion;
         delete config.requestingProfileId;
     }
     else if (clearAppId) {

@@ -43,6 +43,11 @@ function buildApiErrorMessage(
     return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY. ${detail}`;
   }
 
+  if (authenticated && status === 403) {
+    const detail = bodyText || statusText;
+    return `${action} failed (${status}): API credentials are not authorized for this request. Check that the key has the required permissions. ${detail}`;
+  }
+
   if (!config.appId && (status === 401 || status === 403)) {
     const detail = bodyText || statusText;
     return `${action} failed (${status}): app metadata is not configured for this CLI install. If you upgraded from a version that bundled app metadata, run \`orbit login --app-id <provided-app-id>\` or set ORBIT_APP_ID, then retry. ${detail}`;
