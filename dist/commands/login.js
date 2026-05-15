@@ -66,7 +66,7 @@ function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExisting
         delete config.requestingProfileId;
         clearedRequesterProfileId = hadRequesterProfileId;
     }
-    else if (hadRequesterProfileId) {
+    else if (previousApiKey !== apiKey && hadRequesterProfileId) {
         delete config.requestingProfileId;
         clearedRequesterProfileId = true;
     }
