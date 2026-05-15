@@ -26,19 +26,19 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
     config.apiKey = apiKey;
     delete config.orbitApiKey;
-    delete config.requestingProfileId;
     if (appId) {
         config.appId = appId;
     }
     else if (clearAppId) {
         delete config.appId;
         delete config.appVersion;
+        delete config.requestingProfileId;
     }
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
     return {
         savedAppId: Boolean(appId),
         keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
-        clearedRequesterProfileId: hadRequesterProfileId,
+        clearedRequesterProfileId: clearAppId && hadRequesterProfileId,
         clearedAppMetadata: clearAppId && hadAppMetadata,
     };
 }
