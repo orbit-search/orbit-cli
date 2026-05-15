@@ -14,7 +14,7 @@ Pass the key as a Bearer token:
 Authorization: Bearer sk_orb_your_key_here
 ```
 
-Authenticated CLI commands also require app metadata. The app ID is issued with your API access; if you have an API key but no app ID, request one from your Orbit workspace administrator or support contact. For the CLI, set `ORBIT_APP_ID` or add `appId` to `~/.orbit-cli/config.json`; `appVersion` defaults to `1.0.0` when omitted.
+Some API environments also require app metadata. The app ID is issued with your API access; if you have an API key but no app ID, request one from your Orbit workspace administrator or support contact. For the CLI, set `ORBIT_APP_ID` or add `appId` to `~/.orbit-cli/config.json`; `appVersion` defaults to `1.0.0` when omitted.
 
 ## Getting a Key
 

@@ -85,5 +85,5 @@ orbit search "Sam Altman" --first --json
 ## Notes
 
 - Search uses SSE (server-sent events) with a 60-second timeout
-- Search requires an API key and app metadata
+- Search requires an API key; some API environments also require app metadata
 - Results are not full profiles — use `orbit profile <profileId>` or `orbit lookup` for full data

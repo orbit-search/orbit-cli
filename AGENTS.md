@@ -52,6 +52,10 @@ Single TypeScript/Node.js project with two entrypoints:
   - Returns upstream users with identifiers such as `userId`; normalize to `profileId` before CLI/MCP output.
   - Treat this as optional/fallback when unavailable.
 
+### Proxy Routes
+
+This repo does not own a public proxy route. CLI code should call the documented Orbit API host directly. If a host application wraps these endpoints behind its own proxy, document that proxy route in that host application's repository and keep the same identifier mapping rules.
+
 ## CLI Commands
 
 ### `orbit search <query>`
@@ -173,6 +177,8 @@ The app ID is issued with API access. If a user has an API key but no app ID, te
 - CLI and future MCP output must use `profileId` as the stable public identifier.
 - Direct REST API docs and examples must preserve the published upstream field names. Some endpoints still use `userId` as the path parameter or response field, and some nested relationship records still expose `senditId`.
 - Normalize `userId` and `senditId` to `profileId` only inside CLI extraction/output code. Do not rewrite direct REST API response examples to claim the upstream payload returns `profileId` unless the live API schema changes.
+- Some payloads expose `orbitId`/`orbit_id` as a public slug or legacy source identifier. Do not use it as the profile fetch path value unless that endpoint explicitly documents it as the canonical profile UUID; otherwise keep it as metadata and derive CLI `profileId` from `profileId`, `senditId`, or `userId`.
+- `orbitFirstDegree.users[].senditId` in direct REST examples is intentionally an upstream field name; CLI extractors convert it to `orbitFirstDegree[].profileId` before user-facing output.
 - The CLI config field `requestingProfileId` maps to the search request body's published `userId` field when that requester identifier is required.
 
 ## Technical Requirements

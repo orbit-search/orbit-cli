@@ -4,7 +4,7 @@ sidebar_position: 6
 
 # orbit me
 
-Get your own profile. Requires [authentication](/authentication) with an API key and app metadata.
+Get your own profile. Requires [authentication](/authentication) with an API key.
 
 ## Usage
 
@@ -43,4 +43,4 @@ If you haven't authenticated:
 Not authenticated. Run `orbit login` first.
 ```
 
-If app metadata is missing, add `appId` to `~/.orbit-cli/config.json` or set `ORBIT_APP_ID`.
+If your API access requires app metadata, add `appId` to `~/.orbit-cli/config.json` or set `ORBIT_APP_ID`.

@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Authentication
 
-Orbit search and `orbit me` require an API key and app metadata. Profile lookups by profile ID can be used where the public profile endpoint is available.
+Orbit search and `orbit me` require an API key. Profile lookups by profile ID can be used where the public profile endpoint is available.
 
 Anonymous search mode has been removed. Existing installs should run `orbit login` or set `ORBIT_API_KEY`.
 

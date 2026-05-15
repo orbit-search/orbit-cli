@@ -134,6 +134,8 @@ Each section has an `items` array and a `sources` array. Each item:
 }
 ```
 
+The direct API exposes the nested connection identifier as `senditId`. CLI output normalizes that value to `profileId`.
+
 ### `orbitSources`
 
 Web sources the profile was built from:
