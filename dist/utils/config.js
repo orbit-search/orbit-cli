@@ -18,6 +18,9 @@ function readFileConfig() {
 function stripTrailingSlash(value) {
     return value.replace(/\/+$/, "");
 }
+function resolveAppVersion(envVersion, fileVersion) {
+    return envVersion || fileVersion || DEFAULT_APP_VERSION;
+}
 export function loadConfig() {
     const fileConfig = readFileConfig();
     const apiHost = process.env.ORBIT_API_HOST ?? fileConfig.orbitApiHost ?? DEFAULT_API_HOST;
@@ -25,7 +28,7 @@ export function loadConfig() {
         apiHost: stripTrailingSlash(apiHost),
         apiKey: process.env.ORBIT_API_KEY ?? fileConfig.apiKey ?? fileConfig.orbitApiKey,
         appId: process.env.ORBIT_APP_ID ?? fileConfig.appId,
-        appVersion: process.env.ORBIT_APP_VERSION ?? fileConfig.appVersion ?? DEFAULT_APP_VERSION,
+        appVersion: resolveAppVersion(process.env.ORBIT_APP_VERSION, fileConfig.appVersion),
         requestingProfileId: process.env.ORBIT_REQUESTING_PROFILE_ID ?? fileConfig.requestingProfileId,
     };
 }

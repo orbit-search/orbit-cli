@@ -164,7 +164,7 @@ curl "https://api.orbitsearch.com/v2/social/profiles/users/a7b7449d-3b89-4bf1-95
 GET /v1/profile
 ```
 
-**Requires authentication.** Returns the authenticated user's basic info including their `id`, which you can then use with the profile endpoint above.
+**Requires authentication.** Returns the authenticated user's basic info including their `id` or `profileId`, which you can then use with the profile endpoint above.
 
 ```json
 {
