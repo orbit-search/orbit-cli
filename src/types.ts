@@ -139,13 +139,6 @@ export type ApiOrbitFirstDegree = {
   total: number;
 };
 
-// ── Search types ────────────────────────────────────────────────
-
-export type SearchUser = {
-  profileId: string;
-  matchReason?: string;
-};
-
 export type SearchResult = {
   profileId: string;
   displayName: string;
