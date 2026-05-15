@@ -278,10 +278,15 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   let reuseExistingAppId = false;
   if (options.appVersion && !options.appId) {
     const existingAppId = readSavedAppId();
+    const envAppId = process.env.ORBIT_APP_ID;
     if (existingAppId) {
+      if (envAppId && envAppId !== existingAppId) {
+        p.cancel("ORBIT_APP_ID differs from saved app metadata. Set ORBIT_APP_VERSION for the env app ID, or pass --app-id to replace saved metadata.");
+        process.exit(1);
+      }
       appId = existingAppId;
       reuseExistingAppId = true;
-    } else if (process.env.ORBIT_APP_ID) {
+    } else if (envAppId) {
       p.cancel("Set ORBIT_APP_VERSION when ORBIT_APP_ID is configured via environment, or pass --app-id to save app metadata.");
       process.exit(1);
     } else {
