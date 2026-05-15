@@ -38,10 +38,10 @@ function buildApiErrorMessage(
 ): string {
   if (authenticated && status === 401) {
     const detail = bodyText || statusText;
-    if (!config.appId) {
-      return `${action} failed (${status}): API credentials were rejected, and app metadata is not configured for this CLI install. If you upgraded from a version that bundled app metadata, run \`orbit login --app-id <provided-app-id>\` or set ORBIT_APP_ID; otherwise run \`orbit login\` with a valid key. ${detail}`;
-    }
-    return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY. ${detail}`;
+    const appMetadataNote = !config.appId
+      ? " App metadata is also not configured; if your API access requires an app ID, set ORBIT_APP_ID or run `orbit login --app-id <provided-app-id>` after confirming the key is valid."
+      : "";
+    return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY.${appMetadataNote} ${detail}`;
   }
 
   if (authenticated && status === 403) {
