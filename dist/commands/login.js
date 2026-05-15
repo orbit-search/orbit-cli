@@ -66,8 +66,7 @@ function appMetadataNote(result) {
         return `App metadata was saved with this key.${requesterNote}`;
     }
     if (result.keptExistingAppId) {
-        const requesterNote = result.clearedRequesterProfileId ? " Saved requester profile config was cleared." : "";
-        return `Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.${requesterNote}`;
+        return "Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.";
     }
     if (result.clearedAppMetadata) {
         return "Saved app metadata was removed.";

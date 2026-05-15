@@ -24,7 +24,7 @@ Single TypeScript/Node.js project with two entrypoints:
 - **Auth:** use the app credentials provided by the deployment environment or user config.
 - **Profile by ID:** `GET /v2/social/profiles/users/{userId}?sortImagesAsOrbit=true&showFirstOrbit=true`
   - CLI commands accept `profileId`; pass that value as the upstream `userId` path parameter.
-- **Profile by Username:** `GET /v2/social/profiles/usernames/{username}`
+- **Profile by Username:** `GET /v2/social/profiles/usernames/{username}` exists in the public API, but the current CLI does not route `orbit profile` inputs through it.
 - The upstream schema may expose legacy identifier field names; CLI/MCP output normalizes stable profile identifiers to `profileId`.
 - Returns rich AI-generated data:
   ```
@@ -72,11 +72,10 @@ Options:
 - `--age <n>` — filter/rank by age
 - `--location <state>` — filter hint
 
-### `orbit profile <profile_id_or_username>`
-Get full profile for a specific person.
-1. If a profile ID is provided, fetch the corresponding profile directly.
-2. If a username is provided, resolve it through the profile API first.
-3. Output comprehensive profile data
+### `orbit profile <profileId>`
+Get full profile for a specific person by stable profile ID.
+1. Fetch the corresponding profile directly using the provided `profileId`.
+2. Output comprehensive profile data.
 
 Options:
 - `--json` — raw JSON
