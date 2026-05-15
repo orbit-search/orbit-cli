@@ -90,6 +90,7 @@ function normalizeSearchUser(user) {
 }
 export async function getRawProfile(profileId) {
     const config = loadConfig();
+    // Profile lookup is public, so this intentionally sends app metadata without Authorization.
     return fetchJson(`${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders(config) }, config, "Profile lookup");
 }
 export async function getProfile(profileId) {

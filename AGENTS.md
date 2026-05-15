@@ -131,7 +131,7 @@ orbit-cli/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── cli.ts              # CLI entrypoint (uses commander or similar)
+│   ├── cli.ts              # CLI entrypoint; also owns me/whoami/logout
 │   ├── api.ts              # Orbit API client and text formatters
 │   ├── extractors.ts       # Raw API response -> structured profile data
 │   ├── types.ts            # Shared TypeScript types
@@ -142,7 +142,6 @@ orbit-cli/
 │   │   ├── connections.ts  # first-degree connections
 │   │   ├── compare.ts      # compare two profiles
 │   │   ├── sections.ts     # profile section fetches
-│   │   ├── me.ts           # authenticated self profile
 │   │   └── login.ts        # config/login flow
 │   └── utils/
 │       └── config.ts       # Config/env handling
