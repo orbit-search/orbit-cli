@@ -7,8 +7,8 @@ export interface CompareOptions {
 
 function findShared(a: ProfileDetails, b: ProfileDetails) {
   // Shared connections
-  const aConnIds = new Set(a.orbitFirstDegree.map(c => c.senditId));
-  const sharedConns = b.orbitFirstDegree.filter(c => aConnIds.has(c.senditId));
+  const aConnIds = new Set(a.orbitFirstDegree.map(c => c.profileId));
+  const sharedConns = b.orbitFirstDegree.filter(c => aConnIds.has(c.profileId));
 
   // Shared companies (normalized)
   const norm = (s: string) => s.toLowerCase().replace(/[,.]?\s*(inc|corp|llc|ltd|co)\b\.?/gi, "").replace(/[^a-z0-9\s]/g, "").trim();
@@ -28,9 +28,9 @@ function findShared(a: ProfileDetails, b: ProfileDetails) {
   return { sharedConns, sharedCompanies, sharedSchools, sharedSkills };
 }
 
-export async function compareCommand(userIdA: string, userIdB: string, options: CompareOptions): Promise<void> {
+export async function compareCommand(profileIdA: string, profileIdB: string, options: CompareOptions): Promise<void> {
   try {
-    const [a, b] = await Promise.all([getProfile(userIdA), getProfile(userIdB)]);
+    const [a, b] = await Promise.all([getProfile(profileIdA), getProfile(profileIdB)]);
 
     if (options.json) {
       const shared = findShared(a, b);
@@ -59,7 +59,7 @@ export async function compareCommand(userIdA: string, userIdB: string, options: 
     if (shared.sharedConns.length > 0) {
       console.log(`\nShared connections (${shared.sharedConns.length}):`);
       for (const c of shared.sharedConns.slice(0, 10)) {
-        console.log(`  ${c.fullName}  [${c.senditId}]`);
+        console.log(`  ${c.fullName}  [${c.profileId}]`);
       }
       if (shared.sharedConns.length > 10) console.log(`  +${shared.sharedConns.length - 10} more`);
     }

@@ -1,8 +1,8 @@
 import { getProfile, formatProfileBrief } from "../api.js";
 function findShared(a, b) {
     // Shared connections
-    const aConnIds = new Set(a.orbitFirstDegree.map(c => c.senditId));
-    const sharedConns = b.orbitFirstDegree.filter(c => aConnIds.has(c.senditId));
+    const aConnIds = new Set(a.orbitFirstDegree.map(c => c.profileId));
+    const sharedConns = b.orbitFirstDegree.filter(c => aConnIds.has(c.profileId));
     // Shared companies (normalized)
     const norm = (s) => s.toLowerCase().replace(/[,.]?\s*(inc|corp|llc|ltd|co)\b\.?/gi, "").replace(/[^a-z0-9\s]/g, "").trim();
     const aCompanies = new Set(a.jobs.map(j => norm(j.text)));
@@ -17,9 +17,9 @@ function findShared(a, b) {
     const sharedSkills = b.skills.filter(s => aSkills.has(s.toLowerCase()));
     return { sharedConns, sharedCompanies, sharedSchools, sharedSkills };
 }
-export async function compareCommand(userIdA, userIdB, options) {
+export async function compareCommand(profileIdA, profileIdB, options) {
     try {
-        const [a, b] = await Promise.all([getProfile(userIdA), getProfile(userIdB)]);
+        const [a, b] = await Promise.all([getProfile(profileIdA), getProfile(profileIdB)]);
         if (options.json) {
             const shared = findShared(a, b);
             console.log(JSON.stringify({
@@ -43,7 +43,7 @@ export async function compareCommand(userIdA, userIdB, options) {
         if (shared.sharedConns.length > 0) {
             console.log(`\nShared connections (${shared.sharedConns.length}):`);
             for (const c of shared.sharedConns.slice(0, 10)) {
-                console.log(`  ${c.fullName}  [${c.senditId}]`);
+                console.log(`  ${c.fullName}  [${c.profileId}]`);
             }
             if (shared.sharedConns.length > 10)
                 console.log(`  +${shared.sharedConns.length - 10} more`);

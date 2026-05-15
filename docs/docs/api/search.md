@@ -78,7 +78,7 @@ data: {"userId":"9974d324-...","matchReason":"CEO of OpenAI and former Y Combina
 
 ```bash
 curl -X POST https://api.orbitsearch.com/v2/social/profiles/searches/smart/sse \
-  -H "App-Id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d" \
+  -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk_orb_your_key" \

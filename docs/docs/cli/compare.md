@@ -9,7 +9,7 @@ Compare two people side-by-side. Shows brief profiles for both, then highlights 
 ## Usage
 
 ```bash
-orbit compare <userIdA> <userIdB> [options]
+orbit compare <profileIdA> <profileIdB> [options]
 ```
 
 ## Options
@@ -60,7 +60,7 @@ Shared skills: Augmented Reality, JavaScript
 
 | Category | How it matches |
 |---|---|
-| Connections | Exact user ID overlap in first-degree connections |
+| Connections | Exact profile ID overlap in first-degree connections |
 | Companies | Normalized company name match (strips Inc/Corp/LLC) |
 | Schools | Normalized school name match |
 | Skills | Case-insensitive skill name match |
@@ -72,7 +72,7 @@ Shared skills: Augmented Reality, JavaScript
   "personA": { /* full ProfileDetails */ },
   "personB": { /* full ProfileDetails */ },
   "shared": {
-    "connections": [{ "senditId": "...", "fullName": "..." }],
+    "connections": [{ "profileId": "...", "fullName": "..." }],
     "companies": ["Iconic Hearts"],
     "schools": [],
     "skills": ["Augmented Reality", "JavaScript"]

@@ -1,7 +1,7 @@
 import { getProfile, formatProfile, formatProfileBrief } from "../api.js";
-export async function profileCommand(userId, options) {
+export async function profileCommand(profileId, options) {
     try {
-        const profile = await getProfile(userId);
+        const profile = await getProfile(profileId);
         if (options.json) {
             console.log(JSON.stringify(profile, null, 2));
         }

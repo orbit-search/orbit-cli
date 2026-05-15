@@ -4,12 +4,12 @@ sidebar_position: 4
 
 # orbit connections
 
-List all first-degree connections for a person. Each connection includes their user ID, so you can chain into `orbit profile` to explore the network.
+List all first-degree connections for a person. Each connection includes their profile ID, so you can chain into `orbit profile` to explore the network.
 
 ## Usage
 
 ```bash
-orbit connections <userId> [options]
+orbit connections <profileId> [options]
 ```
 
 ## Options
@@ -51,7 +51,7 @@ Nicholas Vinicius Dominici — 50 connections
 ```json
 [
   {
-    "senditId": "00a08c0e-e773-4f11-88bf-fd3092ecc721",
+    "profileId": "00a08c0e-e773-4f11-88bf-fd3092ecc721",
     "fullName": "Garrison R Magyar",
     "avatarUrl": null,
     "link": "https://orbitsearch.com/00a08c0e-e773-4f11-88bf-fd3092ecc721"
@@ -65,8 +65,8 @@ Expand any connection into a full profile:
 
 ```bash
 # Get connections, then profile the first one
-orbit connections <id> --json | jq -r '.[0].senditId' | xargs orbit profile
+orbit connections <id> --json | jq -r '.[0].profileId' | xargs orbit profile
 
 # Batch brief profiles for all connections
-orbit connections <id> --json | jq -r '.[].senditId' | xargs -I {} orbit profile {} --brief
+orbit connections <id> --json | jq -r '.[].profileId' | xargs -I {} orbit profile {} --brief
 ```

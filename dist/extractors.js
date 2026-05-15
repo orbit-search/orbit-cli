@@ -200,17 +200,27 @@ function extractNestedSources(sourcesObj) {
     const widgets = sourcesObj.widgets;
     return extractSectionSources(widgets);
 }
+function stringField(record, key) {
+    const value = record[key];
+    return typeof value === "string" && value.trim() ? value : null;
+}
 function firstDegree(data) {
     if (!data?.users)
         return [];
-    return data.users
-        .filter((u) => u.senditId)
-        .map((u) => ({
-        senditId: u.senditId,
-        fullName: u.fullName ?? "",
-        avatarUrl: u.avatarUrl ?? null,
-        link: "https://orbitsearch.com/" + encodeURIComponent(u.senditId),
-    }));
+    const connections = [];
+    for (const u of data.users) {
+        // Normalize legacy upstream identifier names to the public profileId used by CLI output.
+        const profileId = stringField(u, "profileId") ?? stringField(u, "senditId") ?? stringField(u, "userId");
+        if (!profileId)
+            continue;
+        connections.push({
+            profileId,
+            fullName: u.fullName ?? "",
+            avatarUrl: u.avatarUrl ?? null,
+            link: "https://orbitsearch.com/" + encodeURIComponent(profileId),
+        });
+    }
+    return connections;
 }
 export function parseApiResponse(response) {
     const res = response;
@@ -222,11 +232,11 @@ export function parseApiResponse(response) {
         orbitFirstDegree: res.payload.socialProfile.orbitFirstDegree ?? res.payload.orbitFirstDegree,
     };
 }
-export function extractDetailedProfile(profile, orbitFirstDegree, userId) {
+export function extractDetailedProfile(profile, orbitFirstDegree, profileId) {
     const { aiRating } = profile;
     const myBasics = extractMyBasics(profile.widgets);
     return {
-        userId,
+        profileId,
         displayName: profile.displayName ?? null,
         username: profile.username ?? null,
         photoUrl: extractDefaultPhoto(profile.widgets),

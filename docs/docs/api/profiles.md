@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Profiles API
 
-Get a full profile for any person by user ID.
+Get a full profile for any person by API user ID.
 
 ## Endpoint
 
@@ -152,7 +152,7 @@ Web sources the profile was built from:
 
 ```bash
 curl "https://api.orbitsearch.com/v2/social/profiles/users/a7b7449d-3b89-4bf1-95fc-183e831f31cc?sortImagesAsOrbit=true&showFirstOrbit=true" \
-  -H "App-Id: 0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d" \
+  -H "App-Id: <provided-app-id>" \
   -H "App-Version: 1.0.0"
 ```
 

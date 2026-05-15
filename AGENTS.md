@@ -18,15 +18,13 @@ Single TypeScript/Node.js project with two entrypoints:
   - Input: name plus optional ranking/filter hints such as age or location.
   - Returns: matching profiles with a stable public `profileId` plus display fields.
 - **Full Orbit Profile:** fetch the public profile through the documented profile endpoint using the stable profile identifier.
-- **Profile Enrichment:** use the documented background enrichment endpoint for profiles that are not already available.
-  - Input: name plus optional phone and source URL hints, using the field names from the published API schema.
-  - Returns: async job identifiers from the documented response schema.
-- **Search Status / Response:** when the CLI is asked to wait, poll the documented status endpoint client-side, then fetch the documented response endpoint when complete.
+- **Profile Enrichment:** not exposed by the current CLI. If future support is added, use only the documented Orbit API schema and do not embed service-specific routes or credentials.
 
 ### 2. Profile Details API (`https://api.orbitsearch.com`)
 - **Auth:** use the app credentials provided by the deployment environment or user config.
 - **Profile by ID:** `GET /v2/social/profiles/users/{profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`
 - **Profile by Username:** `GET /v2/social/profiles/usernames/{username}`
+- The upstream schema may expose legacy identifier field names; CLI/MCP output normalizes stable profile identifiers to `profileId`.
 - Returns rich AI-generated data:
   ```
   payload.socialProfile.aiRating = {
@@ -48,8 +46,8 @@ Single TypeScript/Node.js project with two entrypoints:
   payload.orbitFirstDegree = {users: [{profileId, fullName}]}
   ```
 - **Natural Language Search:** use the documented authenticated search endpoint.
-  - Body: `{"query": "...", "profileId": "<requesting-profile-id>", "numUsers": 6, "isManualInput": true}`
-  - Resolve `profileId` from the authenticated session when available; otherwise read it from user config.
+  - Body: query, requester profile identifier when required by the published schema, result count, and manual-input flag.
+  - Resolve the requester profile identifier from the authenticated session when available; otherwise read it from user config.
   - Returns: `{status: "success", payload: {users: [{profileId, matchReason}]}}`
   - Treat this as optional/fallback when unavailable.
 
@@ -79,18 +77,6 @@ Options:
 - `--section <name>` — only show specific section (bio, jobs, education, worldview, etc.)
 - `--brief` — one-paragraph summary only
 - `--sources` — include source URLs
-
-### `orbit enrich <name>`
-Trigger a background profile enrichment for someone not in the system.
-- `--phone <number>` — phone number (improves accuracy)
-- `--twitter <handle>` — Twitter/X handle
-- `--wait` — poll until complete (with progress)
-- Keep existing enrichment command aliases as hidden compatibility aliases until the next major release.
-
-### `orbit smart-search <natural_language_query>`
-Natural language search via the Orbit API.
-- Example: `orbit smart-search "Stanford engineers who worked at Google"`
-- Falls back gracefully if the endpoint is unavailable.
 
 ## Output Format (Token-Efficient)
 
@@ -122,15 +108,11 @@ Nicholas Dominici | 38 | Bethlehem, PA | DVP Operations @ RestorixHealth | ESU
 
 ## MCP Server
 
-Expose the same functionality as MCP tools via Streamable HTTP transport.
+MCP support is not currently implemented in `src/`. If it is added, wrap the existing `src/api.ts` client and expose the same public CLI capabilities via Streamable HTTP transport.
 
-### Tools:
+### Future tools:
 1. **`search_people`** — Search by name, returns list of matching profiles with key details
 2. **`get_profile`** — Get full profile by ID
-3. **`enrich_profile`** — Trigger background profile enrichment
-4. **`smart_search`** — Natural language search (optional, may be unavailable)
-
-Keep existing enrichment tool aliases wired to the same handler as hidden compatibility aliases until the next major release.
 
 ### Server config:
 - Default port: 3847
@@ -145,21 +127,26 @@ orbit-cli/
 ├── tsconfig.json
 ├── src/
 │   ├── cli.ts              # CLI entrypoint (uses commander or similar)
-│   ├── mcp-server.ts       # MCP server entrypoint
-│   ├── api/
-│   │   ├── orbit-api.ts    # Orbit API client
-│   │   ├── profile-api.ts  # Profile details API client
-│   │   └── types.ts        # Shared types
+│   ├── api.ts              # Orbit API client and text formatters
+│   ├── extractors.ts       # Raw API response -> structured profile data
+│   ├── types.ts            # Shared TypeScript types
 │   ├── commands/
 │   │   ├── search.ts       # search command
 │   │   ├── profile.ts      # profile command
-│   │   ├── enrich.ts       # enrichment command
-│   │   └── smart-search.ts # smart-search command
+│   │   ├── lookup.ts       # search + profile command
+│   │   ├── connections.ts  # first-degree connections
+│   │   ├── compare.ts      # compare two profiles
+│   │   ├── sections.ts     # profile section fetches
+│   │   ├── me.ts           # authenticated self profile
+│   │   └── login.ts        # config/login flow
 │   └── utils/
-│       ├── formatter.ts    # Output formatting (text, json, brief)
 │       └── config.ts       # Config/env handling
 ├── bin/
 │   └── orbit              # Shebang entrypoint
+├── docs/                  # Customer-facing docs
+├── skills/
+│   └── orbit/             # Agent skill wrapper
+├── dist/                  # Generated build output
 └── opencode.json
 ```
 
@@ -170,14 +157,14 @@ Support env vars AND a config file at `~/.orbit-cli/config.json`:
 ```json
 {
   "orbitApiHost": "https://api.orbitsearch.com",
-  "orbitApiKey": "<configured at install time>",
+  "apiKey": "<configured at install time>",
   "appId": "<provided by Orbit>",
   "appVersion": "1.0.0",
   "requestingProfileId": "<current-user-profile-id>"
 }
 ```
 
-Also support env vars: `ORBIT_API_KEY`, `ORBIT_APP_ID`, `ORBIT_APP_VERSION`, `ORBIT_REQUESTING_PROFILE_ID`, etc.
+Also support `orbitApiKey` as a config-file alias and env vars: `ORBIT_API_KEY`, `ORBIT_APP_ID`, `ORBIT_APP_VERSION`, `ORBIT_REQUESTING_PROFILE_ID`, etc.
 
 ## Technical Requirements
 
@@ -193,12 +180,14 @@ Also support env vars: `ORBIT_API_KEY`, `ORBIT_APP_ID`, `ORBIT_APP_VERSION`, `OR
 
 1. **Token efficiency** — Default output should be compact. An AI agent reading the output should get maximum info with minimum tokens.
 2. **Graceful degradation** — If enriched profile details are unavailable, still return the stored profile data. If natural language search is unavailable, say so clearly.
-3. **Fast** — Search existing profiles first, only trigger enrichment when explicitly asked.
+3. **Fast** — Search existing profiles first and do not trigger background enrichment implicitly.
 4. **Composable** — Each command can output JSON for piping into other tools.
 
 ## Important Notes
 
 - Use stable public profile identifiers when linking between commands.
 - `profileId` is the public profile identifier used across search results, profile fetches, connection lists, and natural-language search matches.
+- Normalize existing API response identifier fields such as `userId` or `senditId` to `profileId` before exposing CLI or MCP output.
+- Anonymous search mode is intentionally removed; users must authenticate with `orbit login` or `ORBIT_API_KEY` for search.
 - Not all profile records have every enrichment field available.
 - Do not embed raw credentials, undocumented endpoints, or implementation-specific service names in output or generated config.

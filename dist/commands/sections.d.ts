@@ -2,5 +2,5 @@ export type SectionName = "bio" | "work" | "education" | "accomplishments" | "co
 export interface SectionOptions {
     json?: boolean;
 }
-export declare function sectionCommand(userId: string, section: string, options: SectionOptions): Promise<void>;
+export declare function sectionCommand(profileId: string, section: string, options: SectionOptions): Promise<void>;
 //# sourceMappingURL=sections.d.ts.map

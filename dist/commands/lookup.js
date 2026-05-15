@@ -7,7 +7,7 @@ export async function lookupCommand(query, options) {
             process.exit(1);
         }
         const top = results[0];
-        const profile = await getProfile(top.userId);
+        const profile = await getProfile(top.profileId);
         if (options.json) {
             console.log(JSON.stringify({ ...profile, matchReason: top.matchReason }, null, 2));
         }

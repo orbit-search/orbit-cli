@@ -2,7 +2,7 @@ export type JsonRecord = Record<string, unknown>;
 export type ApiProfileResponse = {
     status: string;
     payload: {
-        userId: string;
+        profileId?: string;
         orbitId?: string;
         socialProfile: ApiSocialProfile;
         orbitFirstDegree?: ApiOrbitFirstDegree;
@@ -158,20 +158,20 @@ export type ApiOrbitSource = {
     priority?: number;
 };
 export type ApiOrbitFirstDegree = {
-    users: {
-        senditId: string;
+    users: (JsonRecord & {
+        profileId?: string;
         orbitId: string | null;
         fullName: string;
         avatarUrl: string | null;
-    }[];
+    })[];
     total: number;
 };
 export type SearchUser = {
-    userId: string;
+    profileId: string;
     matchReason?: string;
 };
 export type SearchResult = {
-    userId: string;
+    profileId: string;
     displayName: string;
     age: number | null;
     city: string | null;
@@ -196,7 +196,7 @@ export type SourceLink = {
     url: string;
 };
 export type ProfileDetails = {
-    userId: string;
+    profileId: string;
     displayName: string | null;
     username: string | null;
     photoUrl: string | null;
@@ -234,7 +234,7 @@ export type ProfileDetails = {
         handle: string;
     }[];
     orbitFirstDegree: {
-        senditId: string;
+        profileId: string;
         fullName: string;
         avatarUrl: string | null;
         link: string;

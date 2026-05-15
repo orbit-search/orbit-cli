@@ -36,12 +36,12 @@ program
 
 program
   .command("profile")
-  .description("Get detailed profile for a person by user ID")
-  .argument("<userId>", "User ID (UUID)")
+  .description("Get detailed profile for a person by profile ID")
+  .argument("<profileId>", "Profile ID")
   .option("-j, --json", "Output structured JSON")
   .option("-b, --brief", "Short summary (name, bio, work, social)")
-  .action(async (userId: string, options: { json?: boolean; brief?: boolean }) => {
-    await profileCommand(userId, { json: options.json, brief: options.brief });
+  .action(async (profileId: string, options: { json?: boolean; brief?: boolean }) => {
+    await profileCommand(profileId, { json: options.json, brief: options.brief });
   });
 
 program
@@ -57,18 +57,18 @@ program
 program
   .command("connections")
   .description("List all connections for a person")
-  .argument("<userId>", "User ID (UUID)")
+  .argument("<profileId>", "Profile ID")
   .option("-j, --json", "Output structured JSON")
   .option("-n, --limit <n>", "Max connections to show")
-  .action(async (userId: string, options: { json?: boolean; limit?: string }) => {
-    await connectionsCommand(userId, { json: options.json, limit: options.limit ? Number(options.limit) : undefined });
+  .action(async (profileId: string, options: { json?: boolean; limit?: string }) => {
+    await connectionsCommand(profileId, { json: options.json, limit: options.limit ? Number(options.limit) : undefined });
   });
 
 program
   .command("compare")
   .description("Compare two people — shared connections, companies, schools")
-  .argument("<userIdA>", "First person's user ID")
-  .argument("<userIdB>", "Second person's user ID")
+  .argument("<profileIdA>", "First person's profile ID")
+  .argument("<profileIdB>", "Second person's profile ID")
   .option("-j, --json", "Output structured JSON")
   .action(async (a: string, b: string, options: { json?: boolean }) => {
     await compareCommand(a, b, { json: options.json });
@@ -77,11 +77,11 @@ program
 program
   .command("get")
   .description("Get a specific section of a profile (work, sources, facts, connections, etc.)")
-  .argument("<userId>", "User ID (UUID)")
+  .argument("<profileId>", "Profile ID")
   .argument("<section>", "Section: bio, work, education, accomplishments, controversies, passions, personal, qualities, worldview, social, connections, sources, facts, skills, locations")
   .option("-j, --json", "Output structured JSON")
-  .action(async (userId: string, section: string, options: { json?: boolean }) => {
-    await sectionCommand(userId, section, { json: options.json });
+  .action(async (profileId: string, section: string, options: { json?: boolean }) => {
+    await sectionCommand(profileId, section, { json: options.json });
   });
 
 program
@@ -110,9 +110,11 @@ program
     if (config.apiKey) {
       console.log(`✓ Authenticated`);
       console.log(`  Key: ${config.apiKey.slice(0, 12)}...`);
+      if (!config.appId) {
+        console.log("  App metadata: not configured. Set ORBIT_APP_ID or appId if your API access requires it.");
+      }
     } else {
       console.log("Not authenticated. Run `orbit login` to authenticate.");
-      console.log("Anonymous mode: search still works via service keys.");
     }
   });
 

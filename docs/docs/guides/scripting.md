@@ -12,14 +12,14 @@ Every command supports `--json` output for easy integration with `jq`, scripts, 
 
 ```bash
 # Get first result's ID, then full profile
-orbit search "Sam Altman" --first --json | jq -r '.[0].userId' | xargs orbit profile
+orbit search "Sam Altman" --first --json | jq -r '.[0].profileId' | xargs orbit profile
 ```
 
 ### Batch Profile Lookups
 
 ```bash
 # Profile every connection
-orbit connections <id> --json | jq -r '.[].senditId' | xargs -I {} orbit profile {} --brief
+orbit connections <id> --json | jq -r '.[].profileId' | xargs -I {} orbit profile {} --brief
 ```
 
 ### Extract Specific Fields
@@ -38,8 +38,8 @@ orbit connections <id> --json | jq -r '.[].fullName'
 ### Compare Yourself to Someone
 
 ```bash
-ME=$(orbit me --json | jq -r '.userId')
-orbit compare $ME <otherUserId>
+ME=$(orbit me --json | jq -r '.profileId')
+orbit compare $ME <otherProfileId>
 ```
 
 ## Building with the API
@@ -51,7 +51,7 @@ orbit compare $ME <otherUserId>
 orbit search "VCs in San Francisco" --json > vcs.json
 
 # Loop through and get full profiles
-cat vcs.json | jq -r '.[].userId' | while read id; do
+cat vcs.json | jq -r '.[].profileId' | while read id; do
   orbit profile "$id" --json > "profiles/$id.json"
   sleep 1  # be nice to the API
 done
@@ -61,7 +61,7 @@ done
 
 ```bash
 # Get someone's connections, then get each connection's connections
-orbit connections <id> --json | jq -r '.[].senditId' | head -10 | while read cid; do
+orbit connections <id> --json | jq -r '.[].profileId' | head -10 | while read cid; do
   echo "=== Connections of $(orbit profile $cid --json | jq -r '.displayName') ==="
   orbit connections "$cid" --limit 5
   echo ""

@@ -25,9 +25,9 @@ orbit search "dentists in Miami" --limit 3
 orbit lookup "Mark Zuckerberg"
 orbit lookup "Mark Zuckerberg" --brief    # compact 4-line summary
 
-# Get full profile by user ID
-orbit profile <userId>
-orbit profile <userId> --brief
+# Get full profile by profile ID
+orbit profile <profileId>
+orbit profile <profileId> --brief
 
 # Get your own profile (authenticated)
 orbit me
@@ -35,7 +35,7 @@ orbit me --brief
 
 # JSON output (for piping / agent consumption)
 orbit search "query" --json
-orbit profile <userId> --json
+orbit profile <profileId> --json
 orbit lookup "name" --json
 
 # Auth management
@@ -93,9 +93,9 @@ orbit search "people who are into rock climbing"
 orbit search "Elon Musk" --json
 ```
 
-### `orbit profile <userId>`
+### `orbit profile <profileId>`
 
-Get a detailed profile by user ID (UUID from search results).
+Get a detailed profile by profile ID (UUID from search results).
 
 ```bash
 orbit profile 293ce93b-4104-4cce-b1bb-7d89ddfa3238
@@ -115,7 +115,7 @@ orbit me --json
 
 ```bash
 mcporter call orbit.search_people query="lawyers in San Francisco"
-mcporter call orbit.get_profile userId="<uuid>"
+mcporter call orbit.get_profile profileId="<uuid>"
 mcporter call orbit.whoami
 mcporter call orbit.me
 ```
@@ -171,11 +171,7 @@ Not every profile has all fields. Coverage depends on the person's public footpr
 
 ## Authentication
 
-Orbit works in two modes:
-
-**Anonymous mode** (default): Works out of the box for basic searches and profile lookups.
-
-**Authenticated mode** (`orbit login`): Uses a personal API key for better search results, match reasoning, and access to `orbit me`.
+Authentication is required for search and `orbit me`. Profile lookups by profile ID can be used where the public profile endpoint is available.
 
 1. Run `orbit login` — opens browser
 2. Sign in with your phone number (SMS OTP)
@@ -193,5 +189,5 @@ Orbit works in two modes:
 - **Search is natural language** — don't just search names. Try "engineers at Stripe", "investors in crypto", "teachers in Austin"
 - **Entity searches work** — search for people by company, school, or org: "Humane AI employees", "founders of Builder.ai", "people who worked at Northvolt"
 - **Combine with web research** — for questions like "find people at failing startups", first identify the companies via web search, then use Orbit to find the people at each one
-- **Connections have IDs** — each person in the CONNECTIONS section includes their userId, so you can `orbit profile` them to expand your research
+- **Connections have IDs** — each person in the CONNECTIONS section includes their profileId, so you can `orbit profile` them to expand your research
 - **Profiles are pre-generated** — not every person in the world has an Orbit profile. If someone isn't found, they haven't been indexed yet

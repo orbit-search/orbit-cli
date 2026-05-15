@@ -12,7 +12,7 @@ The top-level object returned by `orbit profile --json`:
 
 ```typescript
 {
-  userId: string;              // UUID identifier
+  profileId: string;              // UUID identifier
   displayName: string | null;  // Full name
   username: string | null;     // Orbit username
   photoUrl: string | null;     // Default profile photo URL
@@ -56,7 +56,7 @@ The top-level object returned by `orbit profile --json`:
   socialLinks: { media: string; handle: string }[];
 
   orbitFirstDegree: {
-    senditId: string;
+    profileId: string;
     fullName: string;
     avatarUrl: string | null;
     link: string;
@@ -107,7 +107,7 @@ Returned by `orbit search --json`:
 
 ```typescript
 {
-  userId: string;           // UUID — use with orbit profile
+  profileId: string;           // UUID — use with orbit profile
   displayName: string;      // Person's name
   age: number | null;       // Age if known
   city: string | null;      // Location if known

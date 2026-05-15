@@ -17,7 +17,7 @@ export async function searchCommand(query, options) {
                     parts.push(`${r.age}`);
                 if (r.city)
                     parts.push(r.city);
-                console.log(`${parts.join(" | ")}  [${r.userId}]`);
+                console.log(`${parts.join(" | ")}  [${r.profileId}]`);
                 if (r.matchReason)
                     console.log(`  ${r.matchReason}`);
             }

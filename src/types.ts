@@ -7,7 +7,7 @@ export type JsonRecord = Record<string, unknown>;
 export type ApiProfileResponse = {
   status: string;
   payload: {
-    userId: string;
+    profileId?: string;
     orbitId?: string;
     socialProfile: ApiSocialProfile;
     orbitFirstDegree?: ApiOrbitFirstDegree;
@@ -130,24 +130,24 @@ export type ApiOrbitSource = {
 };
 
 export type ApiOrbitFirstDegree = {
-  users: {
-    senditId: string;
+  users: (JsonRecord & {
+    profileId?: string;
     orbitId: string | null;
     fullName: string;
     avatarUrl: string | null;
-  }[];
+  })[];
   total: number;
 };
 
 // ── Search types ────────────────────────────────────────────────
 
 export type SearchUser = {
-  userId: string;
+  profileId: string;
   matchReason?: string;
 };
 
 export type SearchResult = {
-  userId: string;
+  profileId: string;
   displayName: string;
   age: number | null;
   city: string | null;
@@ -175,7 +175,7 @@ export type PassionDetail = {
 export type SourceLink = { name: string; url: string };
 
 export type ProfileDetails = {
-  userId: string;
+  profileId: string;
   displayName: string | null;
   username: string | null;
   photoUrl: string | null;
@@ -205,7 +205,7 @@ export type ProfileDetails = {
   passions: PassionDetail[];
   bioSources: SourceLink[];
   socialLinks: { media: string; handle: string }[];
-  orbitFirstDegree: { senditId: string; fullName: string; avatarUrl: string | null; link: string }[];
+  orbitFirstDegree: { profileId: string; fullName: string; avatarUrl: string | null; link: string }[];
   orbitSources: { url: string; name: string }[];
   skills: string[];
   previousLocations: string[];

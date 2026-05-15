@@ -3,8 +3,8 @@
  */
 import type { ProfileDetails, SearchResult } from "./types.js";
 export declare function searchPeople(query: string, numResults?: number): Promise<SearchResult[]>;
-export declare function getRawProfile(userId: string): Promise<unknown>;
-export declare function getProfile(userId: string): Promise<ProfileDetails>;
+export declare function getRawProfile(profileId: string): Promise<unknown>;
+export declare function getProfile(profileId: string): Promise<ProfileDetails>;
 export declare function getMyProfile(): Promise<ProfileDetails>;
 export declare function formatProfile(profile: ProfileDetails): string;
 export declare function formatProfileBrief(profile: ProfileDetails): string;

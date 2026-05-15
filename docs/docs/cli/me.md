@@ -29,7 +29,7 @@ orbit me --json
 
 ## How It Works
 
-1. Calls `GET /v1/profile` with your API key to resolve your user ID
+1. Calls `GET /v1/profile` with your API key to resolve your profile ID
 2. Fetches your full profile from the public profile endpoint
 3. Formats and displays it
 

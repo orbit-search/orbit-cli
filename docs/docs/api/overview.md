@@ -12,13 +12,13 @@ The Orbit API provides programmatic access to people search and profile data. Al
 https://api.orbitsearch.com
 ```
 
-## Required Headers
+## Common Headers
 
-Every request must include:
+Requests use these headers when configured:
 
 | Header | Value |
 |---|---|
-| `App-Id` | `0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d` |
+| `App-Id` | `<provided-app-id>` |
 | `App-Version` | `1.0.0` |
 | `Content-Type` | `application/json` |
 
@@ -54,6 +54,6 @@ Be respectful of the API. There are no published rate limits, but excessive requ
 | 400 | Bad request — check your parameters |
 | 401 | Unauthorized — missing or invalid API key |
 | 403 | Forbidden — API key doesn't have access |
-| 404 | Not found — user ID doesn't exist |
+| 404 | Not found — profile ID doesn't exist |
 | 429 | Rate limited — slow down |
 | 500 | Server error |

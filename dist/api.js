@@ -3,19 +3,19 @@
  */
 import { loadConfig } from "./utils/config.js";
 import { extractDetailedProfile, parseApiResponse } from "./extractors.js";
-const API_HOST = "https://api.orbitsearch.com";
-const APP_ID = "0eae6b0f-c7aa-43c3-af09-7bd5a0a7df7d";
-const APP_VERSION = "1.0.0";
-function getBaseHeaders() {
-    return {
-        "App-Id": APP_ID,
-        "App-Version": APP_VERSION,
+function getBaseHeaders(config) {
+    const headers = {
         "Content-Type": "application/json",
     };
+    // App metadata is optional for public profile reads; never restore a hardcoded app id.
+    if (config.appId)
+        headers["App-Id"] = config.appId;
+    if (config.appVersion)
+        headers["App-Version"] = config.appVersion;
+    return headers;
 }
-function getAuthHeaders() {
-    const config = loadConfig();
-    const headers = getBaseHeaders();
+function getAuthHeaders(config) {
+    const headers = getBaseHeaders(config);
     if (config.apiKey) {
         headers["Authorization"] = `Bearer ${config.apiKey}`;
     }
@@ -31,64 +31,61 @@ async function fetchJson(url, init) {
 }
 export async function searchPeople(query, numResults = 6) {
     const config = loadConfig();
-    let rawUsers;
+    if (!config.apiKey) {
+        throw new Error("Search requires Orbit API credentials. Run `orbit login` or set ORBIT_API_KEY.");
+    }
     const timeout = AbortSignal.timeout(60_000);
-    if (config.apiKey) {
-        const response = await fetch(`${API_HOST}/v2/social/profiles/searches/smart/sse`, {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ query, numUsers: numResults, isManualInput: true }),
-            signal: timeout,
-        });
-        if (!response.ok) {
-            const body = await response.text().catch(() => "");
-            throw new Error(`Search failed (${response.status}): ${body || response.statusText}`);
-        }
-        rawUsers = parseSSEResponse(await response.text());
+    const body = {
+        query,
+        numUsers: numResults,
+        isManualInput: true,
+        // The published search schema names the requester field userId; CLI config exposes it as requestingProfileId.
+        ...(config.requestingProfileId ? { userId: config.requestingProfileId } : {}),
+    };
+    const response = await fetch(`${config.apiHost}/v2/social/profiles/searches/smart/sse`, {
+        method: "POST",
+        headers: getAuthHeaders(config),
+        body: JSON.stringify(body),
+        signal: timeout,
+    });
+    if (!response.ok) {
+        const bodyText = await response.text().catch(() => "");
+        throw new Error(`Search failed (${response.status}): ${bodyText || response.statusText}`);
     }
-    else {
-        const response = await fetchJson(`${API_HOST}/v2/social/profiles/searches/smart/internal`, {
-            method: "POST",
-            headers: {
-                ...getBaseHeaders(),
-                "api-key": "b64e0e40-556f-488d-a416-f5841b0811e8",
-            },
-            body: JSON.stringify({
-                query,
-                userId: "5181db5e-e761-472d-9e0e-98af519bc974",
-                numUsers: numResults,
-                isManualInput: true,
-            }),
-            signal: timeout,
-        });
-        const res = response;
-        rawUsers = res?.payload?.users ?? [];
-    }
-    return rawUsers.filter(u => u.userId).map(u => ({
-        userId: u.userId,
-        displayName: u.displayName ?? "Unknown",
-        age: typeof u.age === "number" ? u.age : null,
-        city: u.city ?? null,
-        matchReason: parseMatchReason(u.matchReason),
-    }));
+    const rawUsers = parseSSEResponse(await response.text());
+    return rawUsers.map(normalizeSearchUser).filter((u) => u !== null);
 }
-export async function getRawProfile(userId) {
-    return fetchJson(`${API_HOST}/v2/social/profiles/users/${userId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders() });
+function normalizeSearchUser(user) {
+    const profileId = getRawProfileId(user);
+    if (!profileId)
+        return null;
+    return {
+        profileId,
+        displayName: user.displayName ?? "Unknown",
+        age: typeof user.age === "number" ? user.age : null,
+        city: user.city ?? null,
+        matchReason: parseMatchReason(user.matchReason),
+    };
 }
-export async function getProfile(userId) {
-    const response = await getRawProfile(userId);
+export async function getRawProfile(profileId) {
+    const config = loadConfig();
+    return fetchJson(`${config.apiHost}/v2/social/profiles/users/${profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`, { method: "GET", headers: getBaseHeaders(config) });
+}
+export async function getProfile(profileId) {
+    const response = await getRawProfile(profileId);
     const { socialProfile, orbitFirstDegree } = parseApiResponse(response);
-    return extractDetailedProfile(socialProfile, orbitFirstDegree, userId);
+    return extractDetailedProfile(socialProfile, orbitFirstDegree, profileId);
 }
 export async function getMyProfile() {
-    const response = await fetchJson(`${API_HOST}/v1/profile`, {
+    const config = loadConfig();
+    const response = await fetchJson(`${config.apiHost}/v1/profile`, {
         method: "GET",
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(config),
     });
-    const userId = response.payload?.user?.id;
-    if (!userId)
-        throw new Error("Could not determine your user ID. Is your API key valid?");
-    return getProfile(userId);
+    const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
+    if (!profileId)
+        throw new Error("Could not determine your profile ID. Is your API key valid?");
+    return getProfile(profileId);
 }
 function srcLine(sources, max = 5) {
     if (sources.length === 0)
@@ -223,7 +220,7 @@ export function formatProfile(profile) {
         const n = profile.orbitFirstDegree.length;
         l.push("", `CONNECTIONS (${n})`);
         for (const c of profile.orbitFirstDegree.slice(0, 10)) {
-            l.push(`  ${c.fullName} [${c.senditId}]`);
+            l.push(`  ${c.fullName} [${c.profileId}]`);
         }
         if (n > 10)
             l.push(`  +${n - 10} more`);
@@ -247,6 +244,11 @@ export function formatProfileBrief(profile) {
         l.push(profile.socialLinks.map(s => `${s.media}: ${s.handle}`).join(" | "));
     }
     return l.join("\n");
+}
+function getRawProfileId(user) {
+    const schemaProfileId = typeof user.profileId === "string" ? user.profileId : null;
+    const schemaUserId = typeof user["userId"] === "string" ? user["userId"] : null;
+    return schemaProfileId ?? schemaUserId;
 }
 function parseMatchReason(mr) {
     if (!mr)
@@ -278,7 +280,10 @@ function parseSSEResponse(text) {
                     }
                     else if (currentEvent === "update" && latestUsers.length > 0) {
                         const update = JSON.parse(dataBuffer);
-                        const existing = latestUsers.find((u) => u.userId === update.userId);
+                        const updateProfileId = getRawProfileId(update);
+                        if (!updateProfileId)
+                            continue;
+                        const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
                         if (existing)
                             existing.matchReason = update.matchReason;
                     }

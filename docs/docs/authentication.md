@@ -34,6 +34,18 @@ orbit login
 orbit login --key sk_orb_your_key_here
 ```
 
+If your API access requires app metadata, add it to the same config file:
+
+```json
+{
+  "apiKey": "sk_orb_your_key_here",
+  "appId": "<provided-app-id>",
+  "appVersion": "1.0.0"
+}
+```
+
+You can set `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of editing the config file.
+
 ### Check Status
 
 ```bash

@@ -61,7 +61,7 @@ Each result includes:
 - **Display name**
 - **Age** (if available)
 - **City** (if available)
-- **User ID** in brackets — use this with `orbit profile`
+- **Profile ID** in brackets — use this with `orbit profile`
 - **Match reason** — why this person matched your query
 
 ## JSON Output
@@ -73,7 +73,7 @@ orbit search "Sam Altman" --first --json
 ```json
 [
   {
-    "userId": "9974d324-1227-48c4-bce1-5cf7ec4f3a9d",
+    "profileId": "9974d324-1227-48c4-bce1-5cf7ec4f3a9d",
     "displayName": "Sam Altman",
     "age": null,
     "city": "United States",
@@ -86,4 +86,4 @@ orbit search "Sam Altman" --first --json
 
 - Search uses SSE (server-sent events) with a 60-second timeout
 - Authenticated searches return better match reasoning
-- Results are not full profiles — use `orbit profile <userId>` or `orbit lookup` for full data
+- Results are not full profiles — use `orbit profile <profileId>` or `orbit lookup` for full data
