@@ -165,6 +165,14 @@ Support env vars AND a config file at `~/.orbit-cli/config.json`:
 ```
 
 Also support `orbitApiKey` as a config-file alias and env vars: `ORBIT_API_KEY`, `ORBIT_APP_ID`, `ORBIT_APP_VERSION`, `ORBIT_REQUESTING_PROFILE_ID`, etc.
+The app ID is issued with API access. If a user has an API key but no app ID, tell them to request one from their Orbit workspace administrator or support contact; do not restore or invent a bundled default.
+
+## Identifier Mapping
+
+- CLI and future MCP output must use `profileId` as the stable public identifier.
+- Direct REST API docs and examples must preserve the published upstream field names. Some endpoints still use `userId` as the path parameter or response field, and some nested relationship records still expose `senditId`.
+- Normalize `userId` and `senditId` to `profileId` only inside CLI extraction/output code. Do not rewrite direct REST API response examples to claim the upstream payload returns `profileId` unless the live API schema changes.
+- The CLI config field `requestingProfileId` maps to the search request body's published `userId` field when that requester identifier is required.
 
 ## Technical Requirements
 

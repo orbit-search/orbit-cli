@@ -22,6 +22,8 @@ Requests use these headers when configured:
 | `App-Version` | `1.0.0` |
 | `Content-Type` | `application/json` |
 
+The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
+
 ## Endpoints
 
 | Method | Endpoint | Description | Auth Required |

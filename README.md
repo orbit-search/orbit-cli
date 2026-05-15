@@ -48,6 +48,7 @@ Some API environments also require app metadata. Existing installs can add it wi
 }
 ```
 
+The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
 You can use `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of config-file fields.
 If an upgraded install is missing required app metadata, API calls fail with setup instructions instead of falling back to a bundled default.
 
