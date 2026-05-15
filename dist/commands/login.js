@@ -9,7 +9,7 @@ const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 const DEFAULT_HOST = "https://orbitsearch.com";
 const CALLBACK_TIMEOUT_MS = 300_000;
-function saveApiKey(apiKey, appId, clearAppId = false) {
+function saveApiKey(apiKey, appId, appVersion, clearAppId = false) {
     if (!existsSync(CONFIG_DIR)) {
         mkdirSync(CONFIG_DIR, { recursive: true });
     }
@@ -28,6 +28,12 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     delete config.orbitApiKey;
     if (appId) {
         config.appId = appId;
+        if (appVersion) {
+            config.appVersion = appVersion;
+        }
+        else {
+            delete config.appVersion;
+        }
         delete config.requestingProfileId;
     }
     else if (clearAppId) {
@@ -38,6 +44,8 @@ function saveApiKey(apiKey, appId, clearAppId = false) {
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
     return {
         savedAppId: Boolean(appId),
+        savedAppVersion: Boolean(appId && appVersion),
+        clearedAppVersion: Boolean(appId && !appVersion),
         keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
         missingAppId: !appId && !clearAppId && !config.appId,
         clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
@@ -63,7 +71,8 @@ function findOpenPort() {
 function appMetadataNote(result) {
     if (result.savedAppId) {
         const requesterNote = result.clearedRequesterProfileId ? " Saved requester profile config was cleared." : "";
-        return `App metadata was saved with this key.${requesterNote}`;
+        const versionNote = result.savedAppVersion ? " App version was saved." : result.clearedAppVersion ? " Saved app version was cleared." : "";
+        return `App metadata was saved with this key.${versionNote}${requesterNote}`;
     }
     if (result.keptExistingAppId) {
         return "Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.";
@@ -82,7 +91,7 @@ function showSavedKey(apiKey, result) {
         p.note(note, "App metadata");
     p.outro(`Authenticated — ${apiKey.slice(0, 12)}...`);
 }
-async function loginWithKey(appId, clearAppId = false) {
+async function loginWithKey(appId, appVersion, clearAppId = false) {
     const key = await p.text({
         message: "Paste your API key",
         placeholder: "sk_orb_...",
@@ -97,9 +106,9 @@ async function loginWithKey(appId, clearAppId = false) {
         p.cancel("Login cancelled.");
         process.exit(0);
     }
-    showSavedKey(key, saveApiKey(key, appId, clearAppId));
+    showSavedKey(key, saveApiKey(key, appId, appVersion, clearAppId));
 }
-async function loginWithBrowser(host, appId, clearAppId = false) {
+async function loginWithBrowser(host, appId, appVersion, clearAppId = false) {
     const port = await findOpenPort();
     const state = randomBytes(16).toString("hex");
     const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -123,7 +132,7 @@ async function loginWithBrowser(host, appId, clearAppId = false) {
                 return;
             }
             callbackReceived = true;
-            const saveResult = saveApiKey(key, appId, clearAppId);
+            const saveResult = saveApiKey(key, appId, appVersion, clearAppId);
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
             spinner.stop(`Authenticated — ${key.slice(0, 12)}...`);
@@ -166,13 +175,17 @@ export async function loginCommand(options) {
         p.cancel("Use either --app-id or --clear-app-id, not both.");
         process.exit(1);
     }
+    if (options.appVersion && !options.appId) {
+        p.cancel("Use --app-version only together with --app-id.");
+        process.exit(1);
+    }
     // Non-interactive: direct key input via flag
     if (options.key) {
         if (!options.key.startsWith("sk_orb_")) {
             p.cancel("Invalid API key format. Keys should start with sk_orb_");
             process.exit(1);
         }
-        showSavedKey(options.key, saveApiKey(options.key, options.appId, options.clearAppId));
+        showSavedKey(options.key, saveApiKey(options.key, options.appId, options.appVersion, options.clearAppId));
         return;
     }
     const host = options.host || DEFAULT_HOST;
@@ -189,10 +202,10 @@ export async function loginCommand(options) {
         process.exit(0);
     }
     if (method === "key") {
-        await loginWithKey(options.appId, options.clearAppId);
+        await loginWithKey(options.appId, options.appVersion, options.clearAppId);
     }
     else {
-        await loginWithBrowser(host, options.appId, options.clearAppId);
+        await loginWithBrowser(host, options.appId, options.appVersion, options.clearAppId);
     }
 }
 //# sourceMappingURL=login.js.map

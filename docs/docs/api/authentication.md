@@ -26,7 +26,7 @@ Or use the CLI:
 
 ```bash
 orbit login
-orbit login --key sk_orb_your_key --app-id <provided-app-id>
+orbit login --key sk_orb_your_key --app-id <provided-app-id> --app-version 1.0.0
 ```
 
 ## Which Endpoints Need Auth?

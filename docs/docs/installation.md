@@ -57,9 +57,9 @@ The app ID is issued with your API access. If you have an API key but no app ID,
 You can also save both values in one command:
 
 ```bash
-orbit login --key sk_orb_your_key --app-id <provided-app-id>
+orbit login --key sk_orb_your_key --app-id <provided-app-id> --app-version 1.0.0
 ```
 
-When rotating a key, `orbit login --key ...` keeps existing app metadata. Pass `--app-id` to replace it or `--clear-app-id` to remove it.
+When rotating a key, `orbit login --key ...` keeps existing app metadata. Pass `--app-id` to replace it, `--app-version` to pin a version with the new app ID, or `--clear-app-id` to remove app metadata.
 
 If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.
