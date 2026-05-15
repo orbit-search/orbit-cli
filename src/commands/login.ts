@@ -45,6 +45,7 @@ function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAp
 
   const hadRequesterProfileId = Boolean(config.requestingProfileId);
   const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
+  const hadAppVersion = Boolean(config.appVersion);
   config.apiKey = apiKey;
   delete config.orbitApiKey;
   if (appId) {
@@ -65,7 +66,7 @@ function saveApiKey(apiKey: string, appId?: string, appVersion?: string, clearAp
   return {
     savedAppId: Boolean(appId),
     savedAppVersion: Boolean(appId && appVersion),
-    clearedAppVersion: Boolean(appId && !appVersion),
+    clearedAppVersion: Boolean(appId && !appVersion && hadAppVersion),
     keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
     missingAppId: !appId && !clearAppId && !config.appId,
     clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
