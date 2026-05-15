@@ -40,7 +40,7 @@ orbit me
 ## Next Steps
 
 - [Installation](/installation) — setup and requirements
-- [Authentication](/authentication) — API keys and auth modes
+- [Authentication](/authentication) — API keys and app metadata
 - [CLI Reference](/cli/search) — all commands
 - [API Reference](/api/overview) — HTTP endpoints
 - [Search Patterns](/guides/search-patterns) — get the most out of search

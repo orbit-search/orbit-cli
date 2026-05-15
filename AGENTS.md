@@ -16,13 +16,14 @@ Single TypeScript/Node.js project with two entrypoints:
 - **Auth:** use the Orbit API credentials provided by the deployment environment or user config.
 - **Profile Search:** use the documented profile search endpoint to search stored profiles by name.
   - Input: name plus optional ranking/filter hints such as age or location.
-  - Returns: matching profiles with a stable public `profileId` plus display fields.
+  - Returns: matching profiles. Normalize the upstream identifier to stable public `profileId` before CLI/MCP output.
 - **Full Orbit Profile:** fetch the public profile through the documented profile endpoint using the stable profile identifier.
 - **Profile Enrichment:** not exposed by the current CLI. If future support is added, use only the documented Orbit API schema and do not embed service-specific routes or credentials.
 
 ### 2. Profile Details API (`https://api.orbitsearch.com`)
 - **Auth:** use the app credentials provided by the deployment environment or user config.
-- **Profile by ID:** `GET /v2/social/profiles/users/{profileId}?sortImagesAsOrbit=true&showFirstOrbit=true`
+- **Profile by ID:** `GET /v2/social/profiles/users/{userId}?sortImagesAsOrbit=true&showFirstOrbit=true`
+  - CLI commands accept `profileId`; pass that value as the upstream `userId` path parameter.
 - **Profile by Username:** `GET /v2/social/profiles/usernames/{username}`
 - The upstream schema may expose legacy identifier field names; CLI/MCP output normalizes stable profile identifiers to `profileId`.
 - Returns rich AI-generated data:
@@ -43,12 +44,12 @@ Single TypeScript/Node.js project with two entrypoints:
   }
   payload.socialProfile.socialMediaHandles = [{media, handle}]
   payload.socialProfile.orbitSources = [{link, title, sourceName}]
-  payload.orbitFirstDegree = {users: [{profileId, fullName}]}
+  payload.orbitFirstDegree = {users: [{senditId, fullName}]}
   ```
 - **Natural Language Search:** use the documented authenticated search endpoint.
   - Body: query, requester profile identifier when required by the published schema, result count, and manual-input flag.
   - Resolve the requester profile identifier from the authenticated session when available; otherwise read it from user config.
-  - Returns: `{status: "success", payload: {users: [{profileId, matchReason}]}}`
+  - Returns upstream users with identifiers such as `userId`; normalize to `profileId` before CLI/MCP output.
   - Treat this as optional/fallback when unavailable.
 
 ## CLI Commands

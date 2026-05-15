@@ -24,7 +24,7 @@ orbit me
 
 ## Authentication
 
-Authentication is required for search and `orbit me`. Profile lookups by profile ID can be used where the public profile endpoint is available:
+Authentication and app metadata are required for search and `orbit me`. Profile lookups by profile ID can be used where the public profile endpoint is available:
 
 ```bash
 orbit login                          # Interactive (browser or paste key)
@@ -38,7 +38,7 @@ API keys are stored at `~/.orbit-cli/config.json`.
 
 Anonymous search mode has been removed. Existing installs should run `orbit login` or set `ORBIT_API_KEY`; profile lookups by ID remain available where the public profile endpoint allows them.
 
-Some API environments also require app metadata. Existing installs can add it without changing their API key:
+Authenticated CLI commands require app metadata. Existing installs can add it without changing their API key:
 
 ```json
 {
@@ -242,7 +242,7 @@ The CLI hits these Orbit API endpoints:
 | Command | Endpoint |
 |---|---|
 | `search` | `POST /v2/social/profiles/searches/smart/sse` |
-| `profile` | `GET /v2/social/profiles/users/{profileId}` |
+| `profile` | `GET /v2/social/profiles/users/{userId}` using the CLI `profileId` value |
 | `me` | `GET /v1/profile` → resolves profileId → profile endpoint |
 
 Requests include configured app metadata headers when present. Authenticated requests also add the configured Orbit authorization token.

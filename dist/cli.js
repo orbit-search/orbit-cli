@@ -98,10 +98,10 @@ program
     .action(() => {
     const config = loadConfig();
     if (config.apiKey) {
-        console.log(`✓ Authenticated`);
+        console.log(config.appId ? `✓ Authenticated` : "API key configured");
         console.log(`  Key: ${config.apiKey.slice(0, 12)}...`);
         if (!config.appId) {
-            console.log("  App metadata: not configured. Set ORBIT_APP_ID or appId if your API access requires it.");
+            console.log("  App metadata: missing. Authenticated commands require ORBIT_APP_ID or appId.");
         }
     }
     else {

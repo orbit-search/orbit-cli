@@ -40,6 +40,23 @@ function buildApiErrorMessage(
   return `${action} failed (${status}): ${bodyText || statusText}`;
 }
 
+function requireApiKey(config: OrbitConfig, action: string): void {
+  if (!config.apiKey) {
+    throw new Error(`${action} requires Orbit API credentials. Run \`orbit login\` or set ORBIT_API_KEY.`);
+  }
+}
+
+function requireAppMetadata(config: OrbitConfig, action: string): void {
+  if (!config.appId) {
+    throw new Error(`${action} requires Orbit app metadata. Set ORBIT_APP_ID or add appId to ~/.orbit-cli/config.json. The app ID is issued with API access; if you do not have one, request it from your Orbit workspace administrator or support contact.`);
+  }
+}
+
+function requireAuthenticatedConfig(config: OrbitConfig, action: string): void {
+  requireApiKey(config, action);
+  requireAppMetadata(config, action);
+}
+
 async function fetchJson(url: string, init: RequestInit, config: OrbitConfig, action = "Request"): Promise<unknown> {
   const response = await fetch(url, init);
   if (!response.ok) {
@@ -51,10 +68,7 @@ async function fetchJson(url: string, init: RequestInit, config: OrbitConfig, ac
 
 export async function searchPeople(query: string, numResults = 6): Promise<SearchResult[]> {
   const config = loadConfig();
-
-  if (!config.apiKey) {
-    throw new Error("Search requires Orbit API credentials. Run `orbit login` or set ORBIT_API_KEY.");
-  }
+  requireAuthenticatedConfig(config, "Search");
 
   const timeout = AbortSignal.timeout(60_000);
   const body = {
@@ -113,9 +127,7 @@ export async function getProfile(profileId: string): Promise<ProfileDetails> {
 
 export async function getMyProfile(): Promise<ProfileDetails> {
   const config = loadConfig();
-  if (!config.apiKey) {
-    throw new Error("`orbit me` requires Orbit API credentials. Run `orbit login` or set ORBIT_API_KEY.");
-  }
+  requireAuthenticatedConfig(config, "`orbit me`");
 
   const response = await fetchJson(`${config.apiHost}/v1/profile`, {
     method: "GET",
