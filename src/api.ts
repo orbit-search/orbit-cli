@@ -337,9 +337,10 @@ function parseSSEResponse(text: string): RawSearchUser[] {
           } else if (currentEvent === "update" && latestUsers.length > 0) {
             const update = JSON.parse(dataBuffer) as RawSearchUser;
             const updateProfileId = getRawProfileId(update);
-            if (!updateProfileId) continue;
-            const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
-            if (existing) existing.matchReason = update.matchReason;
+            if (updateProfileId) {
+              const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
+              if (existing) existing.matchReason = update.matchReason;
+            }
           }
         } catch { /* skip */ }
       }

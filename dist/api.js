@@ -306,11 +306,11 @@ function parseSSEResponse(text) {
                     else if (currentEvent === "update" && latestUsers.length > 0) {
                         const update = JSON.parse(dataBuffer);
                         const updateProfileId = getRawProfileId(update);
-                        if (!updateProfileId)
-                            continue;
-                        const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
-                        if (existing)
-                            existing.matchReason = update.matchReason;
+                        if (updateProfileId) {
+                            const existing = latestUsers.find((u) => getRawProfileId(u) === updateProfileId);
+                            if (existing)
+                                existing.matchReason = update.matchReason;
+                        }
                     }
                 }
                 catch { /* skip */ }
