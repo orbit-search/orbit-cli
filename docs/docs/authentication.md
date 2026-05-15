@@ -53,7 +53,7 @@ orbit whoami
 
 ```bash
 orbit logout
-# ✓ Logged out. API key removed.
+# ✓ Logged out. API key and app metadata removed.
 ```
 
 ## How Auth Works

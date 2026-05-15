@@ -120,8 +120,12 @@ program
     try {
         const config = JSON.parse(readFileSync(configFile, "utf-8"));
         delete config.apiKey;
+        delete config.orbitApiKey;
+        delete config.appId;
+        delete config.appVersion;
+        delete config.requestingProfileId;
         writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
-        console.log("✓ Logged out. API key removed.");
+        console.log("✓ Logged out. API key and app metadata removed.");
     }
     catch {
         console.log("Error clearing config.");

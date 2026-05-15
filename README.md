@@ -31,7 +31,7 @@ orbit login                          # Interactive (browser or paste key)
 orbit login --key sk_orb_your_key    # Direct key input
 orbit login --key sk_orb_your_key --app-id <provided-app-id>
 orbit whoami                         # Check auth status
-orbit logout                         # Remove key
+orbit logout                         # Remove key and app metadata
 ```
 
 API keys are stored at `~/.orbit-cli/config.json`.
