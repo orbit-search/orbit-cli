@@ -34,6 +34,8 @@ orbit lookup "Mark Zuckerberg"
 orbit login --key sk_orb_your_key_here
 # Add app metadata too when provided with your API access
 orbit login --key sk_orb_your_key_here --app-id <provided-app-id>
+# Remove saved app metadata during key rotation
+orbit login --key sk_orb_your_key_here --clear-app-id
 orbit me
 ```
 

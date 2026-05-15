@@ -41,6 +41,8 @@ orbit lookup "name" --json
 # Auth management
 orbit login          # Interactive (browser or paste key)
 orbit login --key sk_orb_...  # Non-interactive
+orbit login --key sk_orb_... --app-id <provided-app-id>
+orbit login --key sk_orb_... --clear-app-id
 orbit whoami
 orbit logout
 ```

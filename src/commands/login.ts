@@ -15,9 +15,15 @@ export interface LoginOptions {
   key?: string;
   host?: string;
   appId?: string;
+  clearAppId?: boolean;
 }
 
-function saveApiKey(apiKey: string, appId?: string): void {
+interface SaveApiKeyResult {
+  keptExistingAppId: boolean;
+  clearedAppMetadata: boolean;
+}
+
+function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApiKeyResult {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
@@ -31,16 +37,22 @@ function saveApiKey(apiKey: string, appId?: string): void {
     }
   }
 
+  const hadAppMetadata = Boolean(config.appId || config.appVersion || config.requestingProfileId);
   config.apiKey = apiKey;
   delete config.orbitApiKey;
   delete config.requestingProfileId;
   if (appId) {
     config.appId = appId;
-  } else {
+  } else if (clearAppId) {
     delete config.appId;
     delete config.appVersion;
   }
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
+
+  return {
+    keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
+    clearedAppMetadata: clearAppId && hadAppMetadata,
+  };
 }
 
 function findOpenPort(): Promise<number> {
@@ -59,7 +71,23 @@ function findOpenPort(): Promise<number> {
   });
 }
 
-async function loginWithKey(appId?: string): Promise<void> {
+function appMetadataNote(result: SaveApiKeyResult): string | null {
+  if (result.keptExistingAppId) {
+    return "Existing app metadata was kept. Pass --app-id to replace it or --clear-app-id to remove it.";
+  }
+  if (result.clearedAppMetadata) {
+    return "Saved app metadata was removed.";
+  }
+  return null;
+}
+
+function showSavedKey(apiKey: string, result: SaveApiKeyResult): void {
+  const note = appMetadataNote(result);
+  if (note) p.note(note, "App metadata");
+  p.outro(`Authenticated — ${apiKey.slice(0, 12)}...`);
+}
+
+async function loginWithKey(appId?: string, clearAppId = false): Promise<void> {
   const key = await p.text({
     message: "Paste your API key",
     placeholder: "sk_orb_...",
@@ -74,11 +102,10 @@ async function loginWithKey(appId?: string): Promise<void> {
     process.exit(0);
   }
 
-  saveApiKey(key, appId);
-  p.outro(`Authenticated — ${key.slice(0, 12)}...`);
+  showSavedKey(key, saveApiKey(key, appId, clearAppId));
 }
 
-async function loginWithBrowser(host: string, appId?: string): Promise<void> {
+async function loginWithBrowser(host: string, appId?: string, clearAppId = false): Promise<void> {
   const port = await findOpenPort();
   const state = randomBytes(16).toString("hex");
   const authUrl = `${host}/settings/cli-auth?port=${port}&state=${encodeURIComponent(state)}`;
@@ -109,14 +136,18 @@ async function loginWithBrowser(host: string, appId?: string): Promise<void> {
       }
 
       callbackReceived = true;
-      saveApiKey(key, appId);
+      const saveResult = saveApiKey(key, appId, clearAppId);
 
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("OK");
 
       spinner.stop(`Authenticated — ${key.slice(0, 12)}...`);
       p.note(
-        `Key saved to ~/.orbit-cli/config.json\nRun \`orbit search\` to get started.`,
+        [
+          "Key saved to ~/.orbit-cli/config.json",
+          appMetadataNote(saveResult),
+          "Run `orbit search` to get started.",
+        ].filter(Boolean).join("\n"),
         "Ready"
       );
 
@@ -156,14 +187,18 @@ async function loginWithBrowser(host: string, appId?: string): Promise<void> {
 }
 
 export async function loginCommand(options: LoginOptions): Promise<void> {
+  if (options.appId && options.clearAppId) {
+    p.cancel("Use either --app-id or --clear-app-id, not both.");
+    process.exit(1);
+  }
+
   // Non-interactive: direct key input via flag
   if (options.key) {
     if (!options.key.startsWith("sk_orb_")) {
       p.cancel("Invalid API key format. Keys should start with sk_orb_");
       process.exit(1);
     }
-    saveApiKey(options.key, options.appId);
-    p.outro(`Authenticated — ${options.key.slice(0, 12)}...`);
+    showSavedKey(options.key, saveApiKey(options.key, options.appId, options.clearAppId));
     return;
   }
 
@@ -185,8 +220,8 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   }
 
   if (method === "key") {
-    await loginWithKey(options.appId);
+    await loginWithKey(options.appId, options.clearAppId);
   } else {
-    await loginWithBrowser(host, options.appId);
+    await loginWithBrowser(host, options.appId, options.clearAppId);
   }
 }

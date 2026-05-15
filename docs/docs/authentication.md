@@ -25,6 +25,9 @@ orbit login --key sk_orb_your_key_here
 
 # Direct — save key and app metadata together
 orbit login --key sk_orb_your_key_here --app-id <provided-app-id>
+
+# Direct — rotate the key and remove saved app metadata
+orbit login --key sk_orb_your_key_here --clear-app-id
 ```
 
 If your API access requires app metadata, add it to the same config file:
@@ -39,6 +42,7 @@ If your API access requires app metadata, add it to the same config file:
 
 The app ID is issued with your API access. If you have an API key but no app ID, request one from your Orbit workspace administrator or support contact.
 You can set `ORBIT_APP_ID` and `ORBIT_APP_VERSION` instead of editing the config file.
+When rotating a key, `orbit login --key ...` keeps existing app metadata. Pass `--app-id` to replace it or `--clear-app-id` to remove it.
 If app metadata is required but missing, the CLI reports the missing setup instead of using a bundled default.
 
 ### Check Status

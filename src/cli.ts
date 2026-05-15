@@ -98,9 +98,10 @@ program
   .description("Authenticate with Orbit via browser")
   .option("-k, --key <key>", "Set API key directly (skip browser flow)")
   .option("--app-id <id>", "Set app metadata ID when provided")
+  .option("--clear-app-id", "Remove saved app metadata during login")
   .option("--host <url>", "Orbit web host (default: https://orbitsearch.com)")
-  .action(async (options: { key?: string; host?: string; appId?: string }) => {
-    await loginCommand({ key: options.key, host: options.host, appId: options.appId });
+  .action(async (options: { key?: string; host?: string; appId?: string; clearAppId?: boolean }) => {
+    await loginCommand({ key: options.key, host: options.host, appId: options.appId, clearAppId: options.clearAppId });
   });
 
 program
