@@ -25,6 +25,9 @@ function getAuthHeaders(config) {
 function buildApiErrorMessage(action, status, statusText, bodyText, config, authenticated = false) {
     if (authenticated && status === 401) {
         const detail = bodyText || statusText;
+        if (!config.appId) {
+            return `${action} failed (${status}): API credentials were rejected, or this API access requires app metadata. Run \`orbit login\` with a valid key; if you were issued an app ID, also run \`orbit login --app-id <provided-app-id>\` or set ORBIT_APP_ID. ${detail}`;
+        }
         return `${action} failed (${status}): API credentials were rejected. Run \`orbit login\` again or set a valid ORBIT_API_KEY. ${detail}`;
     }
     if (!config.appId && (status === 401 || status === 403)) {

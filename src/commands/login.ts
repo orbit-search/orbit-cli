@@ -21,6 +21,7 @@ export interface LoginOptions {
 interface SaveApiKeyResult {
   savedAppId: boolean;
   keptExistingAppId: boolean;
+  missingAppId: boolean;
   clearedRequesterProfileId: boolean;
   clearedAppMetadata: boolean;
 }
@@ -56,6 +57,7 @@ function saveApiKey(apiKey: string, appId?: string, clearAppId = false): SaveApi
   return {
     savedAppId: Boolean(appId),
     keptExistingAppId: !appId && !clearAppId && Boolean(config.appId),
+    missingAppId: !appId && !clearAppId && !config.appId,
     clearedRequesterProfileId: (Boolean(appId) || clearAppId) && hadRequesterProfileId,
     clearedAppMetadata: clearAppId && hadAppMetadata,
   };
@@ -88,6 +90,9 @@ function appMetadataNote(result: SaveApiKeyResult): string | null {
   }
   if (result.clearedAppMetadata) {
     return "Saved app metadata was removed.";
+  }
+  if (result.missingAppId) {
+    return "No app metadata is configured. If your API access includes an app ID, pass --app-id or set ORBIT_APP_ID.";
   }
   if (result.clearedRequesterProfileId) {
     return "Saved requester profile config was cleared.";

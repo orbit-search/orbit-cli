@@ -55,6 +55,7 @@ Single TypeScript/Node.js project with two entrypoints:
 ### Proxy Routes
 
 This repo does not own a public proxy route. CLI code should call the documented Orbit API host directly. If a host application wraps these endpoints behind its own proxy, document that proxy route in that host application's repository and keep the same identifier mapping rules.
+Do not add guessed proxy paths or product-specific wrapper URLs to this repo. Cross-reference the owning host application's docs instead, and keep this CLI limited to the configurable `ORBIT_API_HOST` plus documented Orbit API paths.
 
 ## CLI Commands
 
@@ -180,6 +181,14 @@ The app ID is issued with API access. If a user has an API key but no app ID, te
 - Some payloads expose `orbitId`/`orbit_id` as a public slug or legacy source identifier. Do not use it as the profile fetch path value unless that endpoint explicitly documents it as the canonical profile UUID; otherwise keep it as metadata and derive CLI `profileId` from `profileId`, `senditId`, or `userId`.
 - `orbitFirstDegree.users[].senditId` in direct REST examples is intentionally an upstream field name; CLI extractors convert it to `orbitFirstDegree[].profileId` before user-facing output.
 - The CLI config field `requestingProfileId` maps to the search request body's published `userId` field when that requester identifier is required.
+
+### Identifier Cross-References
+
+When editing docs, examples, or command help, keep these mappings together:
+- Profile fetch commands accept `profileId`, but the direct REST path remains `/v2/social/profiles/users/{userId}` until the published API changes.
+- Natural-language search may send the CLI config field `requestingProfileId` as the request body's published `userId`; do not rename the wire field in REST examples.
+- Relationship payloads may contain `senditId`; CLI/MCP output should expose that value as `profileId`.
+- Proxy route notes belong only in the repository that owns the proxy. This repo should reference public Orbit API paths or the configurable API host, not wrapper routes from another application.
 
 ## Technical Requirements
 
