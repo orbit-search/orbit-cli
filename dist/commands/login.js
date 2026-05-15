@@ -5,11 +5,21 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { exec as execCb } from "node:child_process";
 import * as p from "@clack/prompts";
-import { loadConfig } from "../utils/config.js";
 const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 const DEFAULT_HOST = "https://orbitsearch.com";
 const CALLBACK_TIMEOUT_MS = 300_000;
+function readSavedAppId() {
+    if (!existsSync(CONFIG_FILE))
+        return undefined;
+    try {
+        const config = JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+        return typeof config.appId === "string" ? config.appId : undefined;
+    }
+    catch {
+        return undefined;
+    }
+}
 function saveApiKey(apiKey, appId, appVersion, clearAppId = false, reuseExistingAppId = false) {
     if (!existsSync(CONFIG_DIR)) {
         mkdirSync(CONFIG_DIR, { recursive: true });
@@ -204,7 +214,7 @@ export async function loginCommand(options) {
     let appId = options.appId;
     let reuseExistingAppId = false;
     if (options.appVersion && !options.appId) {
-        const existingAppId = loadConfig().appId;
+        const existingAppId = readSavedAppId();
         if (!existingAppId) {
             p.cancel("Use --app-version only together with --app-id.");
             process.exit(1);

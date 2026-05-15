@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { exec as execCb } from "node:child_process";
 import * as p from "@clack/prompts";
-import { loadConfig } from "../utils/config.js";
 
 const CONFIG_DIR = join(homedir(), ".orbit-cli");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -28,6 +27,16 @@ interface SaveApiKeyResult {
   missingAppId: boolean;
   clearedRequesterProfileId: boolean;
   clearedAppMetadata: boolean;
+}
+
+function readSavedAppId(): string | undefined {
+  if (!existsSync(CONFIG_FILE)) return undefined;
+  try {
+    const config = JSON.parse(readFileSync(CONFIG_FILE, "utf-8")) as Record<string, unknown>;
+    return typeof config.appId === "string" ? config.appId : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function saveApiKey(
@@ -257,7 +266,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   let appId = options.appId;
   let reuseExistingAppId = false;
   if (options.appVersion && !options.appId) {
-    const existingAppId = loadConfig().appId;
+    const existingAppId = readSavedAppId();
     if (!existingAppId) {
       p.cancel("Use --app-version only together with --app-id.");
       process.exit(1);
