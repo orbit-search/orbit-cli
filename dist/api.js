@@ -85,6 +85,9 @@ export async function getProfile(profileId) {
 }
 export async function getMyProfile() {
     const config = loadConfig();
+    if (!config.apiKey) {
+        throw new Error("`orbit me` requires Orbit API credentials. Run `orbit login` or set ORBIT_API_KEY.");
+    }
     const response = await fetchJson(`${config.apiHost}/v1/profile`, {
         method: "GET",
         headers: getAuthHeaders(config),
