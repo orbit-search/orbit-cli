@@ -143,9 +143,10 @@ export async function getMyProfile(): Promise<ProfileDetails> {
   const response = await fetchJson(`${config.apiHost}/v1/profile`, {
     method: "GET",
     headers: getAuthHeaders(config),
-  }, config, "Authentication check", true) as { status: string; payload?: { user?: { id?: string; profileId?: string } } };
+  }, config, "Authentication check", true) as { status: string; payload?: { user?: { id?: string; profileId?: string; orbitId?: string } } };
 
-  const profileId = response.payload?.user?.profileId ?? response.payload?.user?.id;
+  // orbit_id is the profile identity; the account user id is only a last-resort fallback.
+  const profileId = response.payload?.user?.orbitId ?? response.payload?.user?.profileId ?? response.payload?.user?.id;
   if (!profileId) throw new Error("Could not determine your profile ID. Is your API key valid?");
 
   return getProfile(profileId, config);
@@ -301,11 +302,14 @@ type RawSearchUser = JsonRecord & {
 };
 
 function getRawProfileId(user: RawSearchUser): string | null {
+  // orbit_id is the profile identity; legacy sendit ids only resolve via fallback until generated-user cleanup.
+  const schemaOrbitId = typeof user["orbitId"] === "string" ? user["orbitId"] : null;
+  const schemaSnakeOrbitId = typeof user["orbit_id"] === "string" ? user["orbit_id"] : null;
   const schemaProfileId = typeof user.profileId === "string" ? user.profileId : null;
   const schemaSenditId = typeof user["senditId"] === "string" ? user["senditId"] : null;
   const schemaSnakeSenditId = typeof user["sendit_id"] === "string" ? user["sendit_id"] : null;
   const schemaUserId = typeof user["userId"] === "string" ? user["userId"] : null;
-  return schemaProfileId ?? schemaSenditId ?? schemaSnakeSenditId ?? schemaUserId;
+  return schemaOrbitId ?? schemaSnakeOrbitId ?? schemaProfileId ?? schemaSenditId ?? schemaSnakeSenditId ?? schemaUserId;
 }
 
 function parseMatchReason(mr: string | { reason?: string | null } | undefined): string | null {
