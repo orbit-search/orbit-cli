@@ -3,13 +3,35 @@ name: orbit
 description: 'Search for anyone using Orbit — the people search engine. Use when: looking up a person by name, finding people by criteria (profession, location, interests), getting detailed profile info (work history, education, accomplishments, worldview, social links), or researching individuals in conversation. Use the CLI for shell access or the MCP tools via mcporter for programmatic access.'
 metadata:
   {
-    "openclaw": { "emoji": "🔍", "requires": { "anyBins": ["orbit"] } },
+    "openclaw": { "emoji": "🔍", "requires": { "anyBins": ["orbit", "orbit-mcp"] } },
   }
 ---
 
 # Orbit — People Search
 
 Search for anyone and get detailed profiles with work history, education, accomplishments, worldview, passions, social media handles, and more.
+
+## Login from a remote agent
+
+Use `orbit-mcp login` for the public MCP on a remote or headless machine. It emits
+a JSON event with `verification_uri_complete` and `user_code`. Send those to the
+user and ask them to sign in on their own device, verify the code, and click
+**Approve login**. Keep the command running; it polls and emits `connected` after
+approval. Never ask for passwords, tokens, or a pasted callback URL, and do not
+open a remote browser. Only use this flow when the server's OAuth discovery
+advertises `device_authorization_endpoint`; otherwise report that the deployment
+has not enabled it. Denial and expiry end the attempt.
+
+Run `orbit-mcp tools` to discover tool schemas, then `orbit-mcp call <tool>
+--arguments '<json-object>'`. Or configure the MCP host to launch `orbit-mcp stdio`
+after login. Credentials stay in `~/.orbit-cli/mcp-auth.json`; never print them.
+`orbit-mcp whoami` reports connection status; `orbit-mcp logout` revokes it.
+Default access is `search.read`. Request directory scopes only for requested
+directory work: `orbit-mcp login --scope 'search.read directories.read directories.write'`.
+
+MCP OAuth credentials authorize the public MCP, not the REST API. The existing
+`orbit` commands retain their API-key login. Use the MCP tools after remote login.
+Hosted connectors that already handle linking retain their own account flow.
 
 ## Quick Reference
 

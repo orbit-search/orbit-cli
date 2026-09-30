@@ -22,6 +22,35 @@ orbit lookup "Sam Altman"
 orbit me
 ```
 
+## Remote agent MCP login
+
+After installing and building this version, `npm link` also installs `orbit-mcp`.
+Run `orbit-mcp login` on the agent machine. Share the printed link and confirmation
+code with the user; they sign in and click **Approve login** on their own device.
+The command waits for approval without opening a browser or local callback port.
+Production availability requires discovery to advertise the device endpoint.
+
+```bash
+orbit-mcp login
+orbit-mcp tools
+orbit-mcp call <tool-name> --arguments '<JSON-object>'
+orbit-mcp whoami
+orbit-mcp logout
+```
+
+For a stdio MCP host use `{"command":"orbit-mcp","args":["stdio"]}` after login.
+Only MCP protocol messages go to stdio stdout. OAuth tokens stay in a private
+`~/.orbit-cli/mcp-auth.json` file and renew automatically. Never share that file or
+its tokens. Login defaults to `search.read`; request directory scopes explicitly
+with `--scope 'search.read directories.read directories.write'` when needed.
+Logout revokes the session before removing local credentials. MCP OAuth tokens
+are scoped to the MCP resource; the REST `orbit` commands retain their API keys.
+Tool failures do not automatically retry mutations.
+
+Validate with `npm run build && node --test tests/mcp-auth.test.mjs`.
+The gateway's `tests/device-http.test.mjs` also exercises login, private storage,
+tool calls, stdio, and logout when `ORBIT_CLI_DIR` points at this built checkout.
+
 ## Authentication
 
 Authentication is required for search and `orbit me`. Profile lookups by profile ID can be used where the public profile endpoint is available:
