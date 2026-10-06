@@ -1,5 +1,8 @@
 # Orbit CLI + MCP Server
 
+The backend repository is `orbit-search/orbit-api`, formerly `2020-api` / 2020 API.
+Use `../orbit-api` for a sibling backend checkout.
+
 Build a **CLI tool and MCP server** for searching people via Orbit's APIs. This is for an AI agent (me) to use programmatically — optimize for **token efficiency** and **clean structured output**.
 
 ## Architecture
