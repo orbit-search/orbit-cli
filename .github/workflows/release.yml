@@ -47,3 +47,5 @@ jobs:
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # This repository is public: the GitHub-to-Slack map comes from this org secret, never a file.
+      RELEASE_PEOPLE_JSON: ${{ secrets.RELEASE_PEOPLE_JSON }}

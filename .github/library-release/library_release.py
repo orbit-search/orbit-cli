@@ -11,7 +11,7 @@ last tag, a GitHub Release, and (kind npm or pypi) a registry publish.
     smoke           install the built artifact in a clean place and run the smoke command
     registry-has    whether npm or PyPI already has this version (publish is idempotent)
     notify          Slack line that mentions the author of the merged PR (failure ping); the
-                    people map is the vendored release_people.json or the RELEASE_PEOPLE_JSON variable
+                    people map is the vendored release_people.json or the RELEASE_PEOPLE_JSON secret
     check-kit       the vendored kit files match KIT.json
 
 Every external call goes through `Runner` (processes) and `Http` (HTTP), so the
@@ -52,7 +52,7 @@ KIT_FILES = {
     ".github/workflows/library-release.yml": "library-release.yml",
 }
 # The GitHub-login-to-Slack-id map. Private repositories may vendor it (pinned in KIT.json);
-# a public repository must not, and reads it from the RELEASE_PEOPLE_JSON variable instead.
+# a public repository must not, and reads it from the RELEASE_PEOPLE_JSON secret instead.
 PEOPLE_FILE = ".github/library-release/release_people.json"
 PEOPLE_ENV = "RELEASE_PEOPLE_JSON"
 
@@ -434,22 +434,41 @@ def failure_message(*, repo_slug: str, sha: str, login: str | None, mentions: Se
     )
 
 
+def valid_people(people: object) -> bool:
+    """{"fallback": [str, ...], "slack_ids": {str: str}}; both keys optional."""
+    if not isinstance(people, dict):
+        return False
+    slack_ids = people.get("slack_ids", {})
+    fallback = people.get("fallback", [])
+    return (
+        isinstance(slack_ids, dict)
+        and all(isinstance(key, str) and isinstance(value, str) for key, value in slack_ids.items())
+        and isinstance(fallback, list)
+        and all(isinstance(value, str) for value in fallback)
+    )
+
+
 def load_people(people_file: Path, env_json: str) -> dict:
-    """The people map: the vendored file when present, else the RELEASE_PEOPLE_JSON value, else empty."""
+    """The people map: the vendored file when present, else the RELEASE_PEOPLE_JSON secret, else empty.
+
+    A map that is not valid JSON or has the wrong shape gives a warning and mentions nobody,
+    so a bad map never stops the Slack ping itself."""
     if people_file.is_file():
-        return json.loads(people_file.read_text(encoding="utf-8"))
-    if env_json.strip():
-        try:
-            people = json.loads(env_json)
-        except ValueError:
-            print(f"::warning::{PEOPLE_ENV} is not valid JSON; the ping mentions nobody.")
-            return {}
-        if isinstance(people, dict):
-            return people
-        print(f"::warning::{PEOPLE_ENV} is not a JSON object; the ping mentions nobody.")
+        source, text = str(people_file), people_file.read_text(encoding="utf-8")
+    elif env_json.strip():
+        source, text = PEOPLE_ENV, env_json
+    else:
+        print(f"::warning::No {PEOPLE_FILE} and no {PEOPLE_ENV} secret; the ping mentions nobody.")
         return {}
-    print(f"::warning::No {PEOPLE_FILE} and no {PEOPLE_ENV} variable; the ping mentions nobody.")
-    return {}
+    try:
+        people = json.loads(text)
+    except ValueError:
+        print(f"::warning::{source} is not valid JSON; the ping mentions nobody.")
+        return {}
+    if not valid_people(people):
+        print(f"::warning::{source} must be {{\"fallback\": [ids], \"slack_ids\": {{login: id}}}}; the ping mentions nobody.")
+        return {}
+    return people
 
 
 def redact(message: str) -> str:
@@ -498,14 +517,17 @@ def check_kit(repo: Path, *, public: bool = False) -> list[str]:
         elif pinned.get("files", {}).get(relative) != digest(path):
             problems.append(f"{relative} differs from KIT.json; change the kit in orbit-infrastructure and re-sync")
     people = repo / PEOPLE_FILE
+    pins_people = PEOPLE_FILE in pinned.get("files", {})
     if people.is_file():
         if public:
             problems.append(
                 f"{PEOPLE_FILE} must not be in a public repository; delete it (sync.py --visibility public) "
-                f"and set the {PEOPLE_ENV} organization variable instead"
+                f"and set the {PEOPLE_ENV} organization secret instead"
             )
         elif pinned.get("files", {}).get(PEOPLE_FILE) != digest(people):
             problems.append(f"{PEOPLE_FILE} differs from KIT.json; change the kit in orbit-infrastructure and re-sync")
+    elif pins_people and not public:
+        problems.append(f"{PEOPLE_FILE} is missing but KIT.json pins it; re-sync with sync.py --visibility private")
     return problems
 
 
