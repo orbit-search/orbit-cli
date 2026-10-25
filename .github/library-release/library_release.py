@@ -10,7 +10,8 @@ last tag, a GitHub Release, and (kind npm or pypi) a registry publish.
     build-artifact  npm pack, python -m build, or a git archive of HEAD (kind none)
     smoke           install the built artifact in a clean place and run the smoke command
     registry-has    whether npm or PyPI already has this version (publish is idempotent)
-    notify          Slack line that mentions the author of the merged PR (failure ping)
+    notify          Slack line that mentions the author of the merged PR (failure ping); the
+                    people map is the vendored release_people.json or the RELEASE_PEOPLE_JSON secret
     check-kit       the vendored kit files match KIT.json
 
 Every external call goes through `Runner` (processes) and `Http` (HTTP), so the
@@ -45,12 +46,15 @@ PYPROJECT_VERSION = re.compile(
 )
 # The first release lists at most this many commits; older history stays in git log.
 FIRST_RELEASE_COMMITS = 50
-# Files the kit vendors into a repository (KIT.json pins their sha256).
+# Files the kit vendors into every repository (KIT.json pins their sha256).
 KIT_FILES = {
     ".github/library-release/library_release.py": "library_release.py",
-    ".github/library-release/release_people.json": "release_people.json",
     ".github/workflows/library-release.yml": "library-release.yml",
 }
+# The GitHub-login-to-Slack-id map. Private repositories may vendor it (pinned in KIT.json);
+# a public repository must not, and reads it from the RELEASE_PEOPLE_JSON secret instead.
+PEOPLE_FILE = ".github/library-release/release_people.json"
+PEOPLE_ENV = "RELEASE_PEOPLE_JSON"
 
 
 class ReleaseError(Exception):
@@ -430,18 +434,62 @@ def failure_message(*, repo_slug: str, sha: str, login: str | None, mentions: Se
     )
 
 
-def notify(http: Http, *, webhook: str, repo_slug: str, sha: str, token: str, people_file: Path, run_url: str) -> str:
-    people = json.loads(people_file.read_text(encoding="utf-8"))
+def valid_people(people: object) -> bool:
+    """{"fallback": [str, ...], "slack_ids": {str: str}}; both keys optional."""
+    if not isinstance(people, dict):
+        return False
+    slack_ids = people.get("slack_ids", {})
+    fallback = people.get("fallback", [])
+    return (
+        isinstance(slack_ids, dict)
+        and all(isinstance(key, str) and isinstance(value, str) for key, value in slack_ids.items())
+        and isinstance(fallback, list)
+        and all(isinstance(value, str) for value in fallback)
+    )
+
+
+def load_people(people_file: Path, env_json: str) -> dict:
+    """The people map: the vendored file when present, else the RELEASE_PEOPLE_JSON secret, else empty.
+
+    A map that is not valid JSON or has the wrong shape gives a warning and mentions nobody,
+    so a bad map never stops the Slack ping itself."""
+    if people_file.is_file():
+        source, text = str(people_file), people_file.read_text(encoding="utf-8")
+    elif env_json.strip():
+        source, text = PEOPLE_ENV, env_json
+    else:
+        print(f"::warning::No {PEOPLE_FILE} and no {PEOPLE_ENV} secret; the ping mentions nobody.")
+        return {}
+    try:
+        people = json.loads(text)
+    except ValueError:
+        print(f"::warning::{source} is not valid JSON; the ping mentions nobody.")
+        return {}
+    if not valid_people(people):
+        print(f"::warning::{source} must be {{\"fallback\": [ids], \"slack_ids\": {{login: id}}}}; the ping mentions nobody.")
+        return {}
+    return people
+
+
+def redact(message: str) -> str:
+    """The message for the run log: Slack member ids stay out of logs (public repositories have public logs)."""
+    return re.sub(r"<@[A-Z0-9]+>", "<@...>", message)
+
+
+def notify(
+    http: Http, *, webhook: str, repo_slug: str, sha: str, token: str, people_file: Path, run_url: str, people_json: str = ""
+) -> str:
+    people = load_people(people_file, people_json)
     login = pr_author(http, repo_slug=repo_slug, sha=sha, token=token)
     message = failure_message(repo_slug=repo_slug, sha=sha, login=login, mentions=slack_mentions(people, login), run_url=run_url)
     if not webhook:
         print("::warning::SLACK_WEBHOOK_URL is not set; the failure ping goes to this log only.")
-        print(message)
+        print(redact(message))
         return message
     status, body = http("POST", webhook, headers={"Content-Type": "application/json"}, body=json.dumps({"text": message}).encode())
     if status >= 300:
         raise ReleaseError(f"Slack webhook answered {status}: {body[:200]}")
-    print(message)
+    print(redact(message))
     return message
 
 
@@ -452,8 +500,10 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def check_kit(repo: Path) -> list[str]:
-    """Problems with the vendored kit; empty when every file matches KIT.json."""
+def check_kit(repo: Path, *, public: bool = False) -> list[str]:
+    """Problems with the vendored kit; empty when every file matches KIT.json.
+
+    A public repository must not carry the people map (it maps employees to Slack ids)."""
     pin_file = repo / ".github" / "library-release" / "KIT.json"
     try:
         pinned = json.loads(pin_file.read_text(encoding="utf-8"))
@@ -466,6 +516,18 @@ def check_kit(repo: Path) -> list[str]:
             problems.append(f"{relative} is missing")
         elif pinned.get("files", {}).get(relative) != digest(path):
             problems.append(f"{relative} differs from KIT.json; change the kit in orbit-infrastructure and re-sync")
+    people = repo / PEOPLE_FILE
+    pins_people = PEOPLE_FILE in pinned.get("files", {})
+    if people.is_file():
+        if public:
+            problems.append(
+                f"{PEOPLE_FILE} must not be in a public repository; delete it (sync.py --visibility public) "
+                f"and set the {PEOPLE_ENV} organization secret instead"
+            )
+        elif pinned.get("files", {}).get(PEOPLE_FILE) != digest(people):
+            problems.append(f"{PEOPLE_FILE} differs from KIT.json; change the kit in orbit-infrastructure and re-sync")
+    elif pins_people and not public:
+        problems.append(f"{PEOPLE_FILE} is missing but KIT.json pins it; re-sync with sync.py --visibility private")
     return problems
 
 
@@ -534,6 +596,7 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner | None = None, htt
 
     p = sub.add_parser("check-kit")
     p.add_argument("--repo", type=Path, default=Path("."))
+    p.add_argument("--public", action="store_true", help="the repository is public: refuse a vendored people map")
 
     args = parser.parse_args(argv)
     try:
@@ -585,9 +648,10 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner | None = None, htt
                 token=os.environ.get("GITHUB_TOKEN", ""),
                 people_file=args.people,
                 run_url=args.run_url,
+                people_json=os.environ.get(PEOPLE_ENV, ""),
             )
         elif args.command == "check-kit":
-            problems = check_kit(args.repo)
+            problems = check_kit(args.repo, public=args.public)
             for problem in problems:
                 print(f"::error::{problem}")
             if problems:

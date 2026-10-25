@@ -1,10 +1,9 @@
 {
   "_doc": "Pinned copy of orbit-infrastructure/library-release-kit. Do not edit these files here; change the kit there and run library-release-kit/sync.py.",
   "files": {
-    ".github/library-release/library_release.py": "afc9623f5815a3f617085492f3fe849b23bec672193364b2c3a3d8006dbfbcf3",
-    ".github/library-release/release_people.json": "c9c693e85419c29a52c05e7a6611ac12f13efe5b5a0f119a5d65a9ce0c1bd855",
-    ".github/workflows/library-release.yml": "7322d5380ebedb2e4920cdacae0912d06fa797755ec15a13d4523ca0fe78c17f"
+    ".github/library-release/library_release.py": "18e22252429e435d6a215f0b9515f727014202cb64ce9baa890227e7db4ac080",
+    ".github/workflows/library-release.yml": "8b021fca20fc3d1360dc6169e2e09a750e046d7ff32be61799bed8a08648fe85"
   },
   "source": "orbit-search/orbit-infrastructure library-release-kit",
-  "version": "library-kit-a8793afb455f"
+  "version": "library-kit-121881437b76"
 }
