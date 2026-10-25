@@ -1,0 +1,346 @@
+# Library release (reusable workflow). Synced from orbit-infrastructure
+# library-release-kit/ by sync.py and pinned in .github/library-release/KIT.json.
+# Do not edit it in a consuming repository; change the kit and re-sync.
+#
+# Pull request: plan (preview of the version and notes) + checks + build + smoke install.
+# Push to the default branch: the same, then tag vX.Y.Z, GitHub Release, and the
+# registry publish (npm or PyPI) when its credential is configured. A failure on a
+# push pings the merged PR's author in Slack. workflow_dispatch with yank-version
+# withdraws one version (npm deprecate, GitHub Release marked yanked).
+name: library-release
+
+on:
+  workflow_call:
+    inputs:
+      kind:
+        description: "npm, pypi or none (none: tag, notes and GitHub Release only)"
+        type: string
+        required: true
+      package-name:
+        description: "Registry name (npm or PyPI); the archive name for kind none"
+        type: string
+        required: true
+      version-file:
+        description: "package.json or pyproject.toml whose version a person may raise; empty for none"
+        type: string
+        default: ""
+      initial-version:
+        description: "First version when there is no vX.Y.Z tag and no version file"
+        type: string
+        default: "0.1.0"
+      node-version:
+        type: string
+        default: ""
+      python-version:
+        type: string
+        default: ""
+      uv:
+        description: "Install uv"
+        type: boolean
+        default: false
+      setup:
+        description: "Shell commands that install dependencies"
+        type: string
+        default: ""
+      checks:
+        description: "Shell commands: tests and build. A release needs them to pass."
+        type: string
+        required: true
+      smoke:
+        description: "Shell command run against the installed artifact (RELEASE_VERSION is set)"
+        type: string
+        required: true
+      yank-version:
+        description: "X.Y.Z to withdraw (workflow_dispatch only); empty for a normal run"
+        type: string
+        default: ""
+      yank-reason:
+        type: string
+        default: ""
+    secrets:
+      NPM_TOKEN:
+        required: false
+      SLACK_WEBHOOK_URL:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  KIT: .github/library-release/library_release.py
+
+jobs:
+  plan:
+    if: inputs.yank-version == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      release: ${{ steps.plan.outputs.release }}
+      existing: ${{ steps.plan.outputs.existing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Kit matches its pin
+        run: python3 "$KIT" check-kit
+      - name: Plan the version
+        id: plan
+        env:
+          VERSION_FILE: ${{ inputs.version-file }}
+          INITIAL_VERSION: ${{ inputs.initial-version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          python3 "$KIT" plan \
+            --version-file "$VERSION_FILE" \
+            --initial-version "$INITIAL_VERSION" \
+            --event "$GITHUB_EVENT_NAME" \
+            --ref "$GITHUB_REF" \
+            --default-branch "$DEFAULT_BRANCH" \
+            --repo-slug "$GITHUB_REPOSITORY" \
+            --date "$(date -u +%Y-%m-%d)" \
+            --notes release-notes.md \
+            --github-output "$GITHUB_OUTPUT"
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  verify:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - if: inputs.node-version != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: https://registry.npmjs.org
+      - if: inputs.python-version != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+      - if: inputs.uv
+        uses: astral-sh/setup-uv@v10.2.0
+      - name: Set up
+        if: inputs.setup != ''
+        env:
+          SETUP: ${{ inputs.setup }}
+        run: bash -euo pipefail -c "$SETUP"
+      - name: Set the release version (this CI copy only)
+        if: inputs.kind != 'none' && inputs.version-file != ''
+        env:
+          VERSION_FILE: ${{ inputs.version-file }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: python3 "$KIT" set-version --file "$VERSION_FILE" --version "$VERSION"
+      - name: Checks (tests and build)
+        env:
+          CHECKS: ${{ inputs.checks }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+        run: bash -euo pipefail -c "$CHECKS"
+      - name: Install build
+        if: inputs.kind == 'pypi'
+        run: python3 -m pip install --quiet build
+      - name: Build the artifact
+        id: build
+        env:
+          KIND: ${{ inputs.kind }}
+          NAME: ${{ inputs.package-name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          python3 "$KIT" build-artifact --kind "$KIND" --name "${NAME##*/}" --version "$VERSION" \
+            --out "$RUNNER_TEMP/release-artifact" --github-output "$GITHUB_OUTPUT"
+      - name: Smoke install of the built artifact
+        env:
+          KIND: ${{ inputs.kind }}
+          SMOKE: ${{ inputs.smoke }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          ARTIFACT: ${{ steps.build.outputs.artifact }}
+        run: python3 "$KIT" smoke --kind "$KIND" --artifact "$ARTIFACT" --run "$SMOKE" --version "$VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifact
+          path: ${{ runner.temp }}/release-artifact/
+          if-no-files-found: error
+
+  release:
+    needs: [plan, verify]
+    if: needs.plan.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/downloads
+      - name: Tag the merge commit
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          # Idempotent: "Re-run failed jobs" reuses the plan, so the tag may already exist from the failed attempt.
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            tagged="$(git rev-list -n 1 "refs/tags/$TAG")"
+            if [ "$tagged" != "$GITHUB_SHA" ]; then
+              echo "::error::$TAG already exists on $tagged, not on $GITHUB_SHA"
+              exit 1
+            fi
+            echo "$TAG already points at $GITHUB_SHA"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          KIND: ${{ inputs.kind }}
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          PYPI_TRUSTED_PUBLISHING: ${{ vars.PYPI_TRUSTED_PUBLISHING }}
+          DOWNLOADS: ${{ runner.temp }}/downloads
+        run: |
+          # A release that still waits for its registry publish stays a draft until the publish job finishes.
+          draft=()
+          if { [ "$KIND" = npm ] && [ "$HAS_NPM_TOKEN" = true ]; } || { [ "$KIND" = pypi ] && [ "$PYPI_TRUSTED_PUBLISHING" = true ]; }; then
+            draft=(--draft)
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # A re-run never replaces an asset that is already attached: what was published stays what is downloaded.
+            attached="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+            for file in "$DOWNLOADS"/release-artifact/*; do
+              if ! grep -qxF "$(basename "$file")" <<< "$attached"; then
+                gh release upload "$TAG" "$file"
+              fi
+            done
+          else
+            gh release create "$TAG" "$DOWNLOADS"/release-artifact/* --verify-tag --title "$TAG" \
+              --notes-file "$DOWNLOADS/release-notes/release-notes.md" "${draft[@]}"
+          fi
+
+  publish:
+    needs: [plan, release]
+    if: inputs.kind != 'none' && needs.plan.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+          path: ${{ runner.temp }}/release-artifact
+      - if: inputs.kind == 'npm'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version || '20' }}
+          registry-url: https://registry.npmjs.org
+      - name: Publish configured?
+        id: configured
+        env:
+          KIND: ${{ inputs.kind }}
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          PYPI_TRUSTED_PUBLISHING: ${{ vars.PYPI_TRUSTED_PUBLISHING }}
+        run: |
+          if { [ "$KIND" = npm ] && [ "$HAS_NPM_TOKEN" = true ]; } || { [ "$KIND" = pypi ] && [ "$PYPI_TRUSTED_PUBLISHING" = true ]; }; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$KIND publish is not configured (NPM_TOKEN secret, or PYPI_TRUSTED_PUBLISHING=true). The tag and GitHub Release are the release."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Already on the registry?
+        id: registry
+        if: steps.configured.outputs.publish == 'true'
+        env:
+          KIND: ${{ inputs.kind }}
+          NAME: ${{ inputs.package-name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: python3 "$KIT" registry-has --kind "$KIND" --name "$NAME" --version "$VERSION" --github-output "$GITHUB_OUTPUT"
+      - name: npm publish
+        if: inputs.kind == 'npm' && steps.configured.outputs.publish == 'true' && steps.registry.outputs.published != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PRIVATE_REPO: ${{ github.event.repository.private }}
+          ARTIFACTS: ${{ runner.temp }}/release-artifact
+        run: |
+          provenance=()
+          [ "$PRIVATE_REPO" = false ] && provenance=(--provenance)
+          npm publish "$ARTIFACTS"/*.tgz --access public "${provenance[@]}"
+      - name: PyPI publish (trusted publishing)
+        if: inputs.kind == 'pypi' && steps.configured.outputs.publish == 'true' && steps.registry.outputs.published != 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ runner.temp }}/release-artifact
+      - name: Finish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true ]; then
+            gh release edit "$TAG" --draft=false --latest
+          fi
+
+  notify:
+    needs: [plan, verify, release, publish]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Slack ping to the author
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 "$KIT" notify --repo-slug "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" --run-url "$RUN_URL"
+
+  yank:
+    if: inputs.yank-version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - if: inputs.kind == 'npm'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version || '20' }}
+          registry-url: https://registry.npmjs.org
+      - name: Withdraw the version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          KIND: ${{ inputs.kind }}
+          NAME: ${{ inputs.package-name }}
+          VERSION: ${{ inputs.yank-version }}
+          REASON: ${{ inputs.yank-reason }}
+        run: |
+          python3 "$KIT" validate-version "$VERSION"
+          [ -n "$REASON" ] || { echo "::error::yank-reason is required"; exit 1; }
+          tag="v$VERSION"
+          if [ "$KIND" = npm ]; then
+            if [ -n "$NODE_AUTH_TOKEN" ]; then
+              npm deprecate "$NAME@$VERSION" "$REASON"
+            else
+              echo "::warning::No NPM_TOKEN: run 'npm deprecate $NAME@$VERSION \"<reason>\"' by hand."
+            fi
+          elif [ "$KIND" = pypi ]; then
+            echo "::warning::PyPI yanks only in the web UI: pypi.org > $NAME > Manage > Releases > $VERSION > Options > Yank."
+          fi
+          notes="$(gh release view "$tag" --json body --jq .body)"
+          gh release edit "$tag" --prerelease --title "$tag (yanked)" \
+            --notes "$(printf 'Yanked: %s\n\n%s' "$REASON" "$notes")"
+          echo "Withdrew $tag. The tag stays, so history and installs by commit keep working."

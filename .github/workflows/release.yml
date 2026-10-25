@@ -1,0 +1,49 @@
+# Release pipeline: a merge to main makes a tagged, tested release (npm package orbit-cli).
+# The steps live in library-release.yml (synced from orbit-infrastructure
+# library-release-kit/); this file holds only this repository's settings.
+# Run it by hand with yank-version to withdraw a version. See README.md, "Releasing".
+name: release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      yank-version:
+        description: "Version to withdraw (X.Y.Z)"
+        required: true
+      yank-reason:
+        description: "Why it is withdrawn"
+        required: true
+
+concurrency:
+  group: release-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: read
+
+jobs:
+  release:
+    uses: ./.github/workflows/library-release.yml
+    with:
+      kind: "npm"
+      package-name: "orbit-cli"
+      version-file: "package.json"
+      node-version: "20"
+      setup: "npm ci"
+      checks: |
+        npm run build
+        node bin/orbit --version
+        node bin/orbit --help > /dev/null
+      smoke: |
+        test "$(orbit --version)" = "$RELEASE_VERSION"
+        orbit --help > /dev/null
+      yank-version: ${{ inputs.yank-version }}
+      yank-reason: ${{ inputs.yank-reason }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
