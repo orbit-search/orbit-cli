@@ -159,7 +159,7 @@ jobs:
           SMOKE: ${{ inputs.smoke }}
           VERSION: ${{ needs.plan.outputs.version }}
           ARTIFACT: ${{ steps.build.outputs.artifact }}
-        run: python3 "$KIT" smoke --kind "$KIND" --artifact "$ARTIFACT" --command "$SMOKE" --version "$VERSION"
+        run: python3 "$KIT" smoke --kind "$KIND" --artifact "$ARTIFACT" --run "$SMOKE" --version "$VERSION"
       - uses: actions/upload-artifact@v4
         with:
           name: release-artifact
@@ -181,10 +181,19 @@ jobs:
         with:
           path: ${{ runner.temp }}/downloads
       - name: Tag the merge commit
-        if: needs.plan.outputs.existing != 'true'
         env:
           TAG: ${{ needs.plan.outputs.tag }}
         run: |
+          # Idempotent: "Re-run failed jobs" reuses the plan, so the tag may already exist from the failed attempt.
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            tagged="$(git rev-list -n 1 "refs/tags/$TAG")"
+            if [ "$tagged" != "$GITHUB_SHA" ]; then
+              echo "::error::$TAG already exists on $tagged, not on $GITHUB_SHA"
+              exit 1
+            fi
+            echo "$TAG already points at $GITHUB_SHA"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "$TAG" "$GITHUB_SHA"
@@ -203,8 +212,14 @@ jobs:
           if { [ "$KIND" = npm ] && [ "$HAS_NPM_TOKEN" = true ]; } || { [ "$KIND" = pypi ] && [ "$PYPI_TRUSTED_PUBLISHING" = true ]; }; then
             draft=(--draft)
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$DOWNLOADS"/release-artifact/* --clobber
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # A re-run never replaces an asset that is already attached: what was published stays what is downloaded.
+            attached="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+            for file in "$DOWNLOADS"/release-artifact/*; do
+              if ! grep -qxF "$(basename "$file")" <<< "$attached"; then
+                gh release upload "$TAG" "$file"
+              fi
+            done
           else
             gh release create "$TAG" "$DOWNLOADS"/release-artifact/* --verify-tag --title "$TAG" \
               --notes-file "$DOWNLOADS/release-notes/release-notes.md" "${draft[@]}"
@@ -229,35 +244,42 @@ jobs:
         with:
           node-version: ${{ inputs.node-version || '20' }}
           registry-url: https://registry.npmjs.org
+      - name: Publish configured?
+        id: configured
+        env:
+          KIND: ${{ inputs.kind }}
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          PYPI_TRUSTED_PUBLISHING: ${{ vars.PYPI_TRUSTED_PUBLISHING }}
+        run: |
+          if { [ "$KIND" = npm ] && [ "$HAS_NPM_TOKEN" = true ]; } || { [ "$KIND" = pypi ] && [ "$PYPI_TRUSTED_PUBLISHING" = true ]; }; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$KIND publish is not configured (NPM_TOKEN secret, or PYPI_TRUSTED_PUBLISHING=true). The tag and GitHub Release are the release."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Already on the registry?
         id: registry
+        if: steps.configured.outputs.publish == 'true'
         env:
           KIND: ${{ inputs.kind }}
           NAME: ${{ inputs.package-name }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: python3 "$KIT" registry-has --kind "$KIND" --name "$NAME" --version "$VERSION" --github-output "$GITHUB_OUTPUT"
       - name: npm publish
-        if: inputs.kind == 'npm' && steps.registry.outputs.published != 'true'
+        if: inputs.kind == 'npm' && steps.configured.outputs.publish == 'true' && steps.registry.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PRIVATE_REPO: ${{ github.event.repository.private }}
           ARTIFACTS: ${{ runner.temp }}/release-artifact
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::notice::npm publish is not configured (no NPM_TOKEN secret). The tag and GitHub Release are the release."
-            exit 0
-          fi
           provenance=()
           [ "$PRIVATE_REPO" = false ] && provenance=(--provenance)
           npm publish "$ARTIFACTS"/*.tgz --access public "${provenance[@]}"
       - name: PyPI publish (trusted publishing)
-        if: inputs.kind == 'pypi' && steps.registry.outputs.published != 'true' && vars.PYPI_TRUSTED_PUBLISHING == 'true'
+        if: inputs.kind == 'pypi' && steps.configured.outputs.publish == 'true' && steps.registry.outputs.published != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: ${{ runner.temp }}/release-artifact
-      - name: PyPI publish not configured
-        if: inputs.kind == 'pypi' && vars.PYPI_TRUSTED_PUBLISHING != 'true'
-        run: echo "::notice::PyPI publish is not configured (repository variable PYPI_TRUSTED_PUBLISHING is not true)."
       - name: Finish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

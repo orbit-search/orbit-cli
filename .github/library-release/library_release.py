@@ -38,6 +38,11 @@ SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 TAG = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 CONVENTIONAL = re.compile(r"^(?P<type>[a-zA-Z]+)(?:\([^)]*\))?(?P<bang>!)?:\s")
 KINDS = ("npm", "pypi", "none")
+# version = "1.2.3" or '1.2.3', optionally followed by a comment, in pyproject.toml's [project] table.
+PYPROJECT_VERSION = re.compile(
+    r"""^(?P<lead>version\s*=\s*)(?P<quote>["'])(?P<value>[^"'\n]*)(?P=quote)(?P<tail>[ \t]*(?:#[^\n]*)?)$""",
+    re.MULTILINE,
+)
 # The first release lists at most this many commits; older history stays in git log.
 FIRST_RELEASE_COMMITS = 50
 # Files the kit vendors into a repository (KIT.json pins their sha256).
@@ -148,8 +153,8 @@ def read_version_file(path: Path) -> str | None:
         section = _project_section(text)
         if section is None:
             return None
-        match = re.search(r'^version\s*=\s*"([^"]+)"\s*$', text[section[0] : section[1]], re.MULTILINE)
-        return match[1] if match else None
+        match = PYPROJECT_VERSION.search(text[section[0] : section[1]])
+        return match["value"] if match else None
     raise ReleaseError(f"unsupported version file (package.json or pyproject.toml): {path}")
 
 
@@ -166,8 +171,8 @@ def write_version_file(path: Path, version: str) -> None:
         if section is None:
             raise ReleaseError(f"{path} has no [project] table")
         start, end = section
-        body, count = re.subn(
-            r'^version\s*=\s*"[^"]*"\s*$', f'version = "{version}"', text[start:end], count=1, flags=re.MULTILINE
+        body, count = PYPROJECT_VERSION.subn(
+            lambda match: f"{match['lead']}{match['quote']}{version}{match['quote']}{match['tail']}", text[start:end], count=1
         )
         if count != 1:
             raise ReleaseError(f"{path} [project] has no version line")
@@ -256,11 +261,26 @@ def make_plan(
         parse_version(file_version)
 
     at_head = release_tags(runner, repo, ["--points-at", head])
-    if at_head:
-        version = format_version(at_head[-1])
-        return Plan(version, f"v{version}", release, True, "none", reason=f"{head[:12]} already has v{version}")
-
     merged = release_tags(runner, repo, ["--merged", head])
+    every = release_tags(runner, repo, [])
+    if at_head:
+        # A re-run: keep the tag and rebuild the same notes from the tag before it.
+        current = at_head[-1]
+        earlier = [tag for tag in merged if tag < current]
+        previous = format_version(earlier[-1]) if earlier else None
+        commits = commits_between(runner, repo, f"v{previous}" if previous else None, head)
+        version = format_version(current)
+        return Plan(version, f"v{version}", release, True, "none", commits, previous, f"{head[:12]} already has v{version}")
+
+    newest = every[-1] if every else None
+    if newest is not None and (not merged or newest > merged[-1]):
+        # A newer tag exists that this commit's history does not reach as its latest release.
+        newest_tag = f"v{format_version(newest)}"
+        if runner(["git", "merge-base", "--is-ancestor", head, newest_tag], cwd=repo).returncode == 0:
+            return Plan(
+                format_version(newest), newest_tag, False, True, "none",
+                reason=f"{head[:12]} is already part of {newest_tag}; a re-run of an older commit releases nothing",
+            )
     previous = format_version(merged[-1]) if merged else None
     commits = commits_between(runner, repo, f"v{previous}" if previous else None, head)
     if previous is None:
@@ -269,7 +289,8 @@ def make_plan(
         reason = "first release: " + ("the version file" if file_version else "the initial version")
     else:
         level = bump_level(commits)
-        candidate = bump(parse_version(previous), level)
+        # Bump from the newest tag anywhere, so a version is never handed out twice.
+        candidate = bump(max(parse_version(previous), newest or parse_version(previous)), level)
         if file_version and parse_version(file_version) > candidate:
             version, reason = file_version, f"the version file asks for {file_version}"
         else:
@@ -281,7 +302,7 @@ def release_notes(plan: Plan, *, repo_slug: str, head: str, date: str) -> str:
     lines = [f"## {plan.tag} ({date})", "", f"Commit: {head}"]
     if plan.previous:
         lines.append(f"Changes since v{plan.previous}: https://github.com/{repo_slug}/compare/v{plan.previous}...{plan.tag}")
-    elif not plan.existing:
+    else:
         lines.append(f"First release made by the pipeline; it lists the last {FIRST_RELEASE_COMMITS} commits at most.")
     groups = {"major": [], "minor": [], "patch": []}
     for commit in plan.commits:
@@ -291,8 +312,6 @@ def release_notes(plan: Plan, *, repo_slug: str, head: str, date: str) -> str:
         if groups[level]:
             lines += ["", f"### {titles[level]}", ""]
             lines += [f"- {commit.subject} ({commit.sha[:7]})" for commit in groups[level]]
-    if plan.existing:
-        lines += ["", "This run re-used the existing tag; nothing new was committed."]
     return "\n".join(lines) + "\n"
 
 
@@ -321,7 +340,8 @@ def build_artifact(runner: Runner, repo: Path, *, kind: str, name: str, version:
 def smoke(runner: Runner, *, kind: str, artifact: Path, command: str, version: str, workdir: Path) -> None:
     """Install the artifact somewhere clean and run the smoke command there.
 
-    npm: `npm install -g --prefix <tmp>`, the command runs with <tmp>/bin first on PATH.
+    npm: `npm install -g --prefix <tmp>`, the command runs with <tmp>/bin first on PATH and
+    NODE_PATH at the installed packages (CommonJS require; an ESM import needs a file in the tree).
     pypi: a fresh venv with the wheel, the command runs with the venv's bin first on PATH.
     none: the archive is unpacked and the command runs inside the unpacked tree.
     The command gets RELEASE_VERSION, so it can compare `--version` output.
@@ -332,6 +352,8 @@ def smoke(runner: Runner, *, kind: str, artifact: Path, command: str, version: s
         prefix = workdir / "npm-prefix"
         run_ok(runner, ["npm", "install", "--global", "--prefix", str(prefix), str(artifact)])
         env["PATH"] = f"{prefix / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+        # A library smoke such as node -e "require('pkg')" resolves from the global prefix.
+        env["NODE_PATH"] = str(prefix / "lib" / "node_modules")
     elif kind == "pypi":
         venv = workdir / "venv"
         run_ok(runner, [sys.executable, "-m", "venv", str(venv)])
@@ -492,7 +514,7 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner | None = None, htt
     p = sub.add_parser("smoke")
     p.add_argument("--kind", choices=KINDS, required=True)
     p.add_argument("--artifact", type=Path, required=True)
-    p.add_argument("--command", required=True)
+    p.add_argument("--run", required=True, help="shell command to run against the installed artifact")
     p.add_argument("--version", required=True)
 
     p = sub.add_parser("registry-has")
@@ -546,7 +568,7 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner | None = None, htt
             write_outputs(args.github_output, {"artifact": str(artifact)})
         elif args.command == "smoke":
             with tempfile.TemporaryDirectory(prefix="library-release-smoke-") as tmp:
-                smoke(runner, kind=args.kind, artifact=args.artifact.resolve(), command=args.command, version=args.version, workdir=Path(tmp))
+                smoke(runner, kind=args.kind, artifact=args.artifact.resolve(), command=args.run, version=args.version, workdir=Path(tmp))
             print(f"smoke install of {args.artifact.name} passed")
         elif args.command == "registry-has":
             has = registry_has(http, kind=args.kind, name=args.name, version=args.version)
@@ -571,6 +593,8 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner | None = None, htt
             if problems:
                 return 1
             print("library release kit matches KIT.json")
+        else:  # every subcommand needs a branch above; never report success for an unhandled one
+            raise ReleaseError(f"unhandled subcommand {args.command!r}")
     except ReleaseError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1
