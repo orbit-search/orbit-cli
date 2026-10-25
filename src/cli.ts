@@ -13,12 +13,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
+// The version comes from package.json, which the release pipeline sets from the release tag.
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")) as { version: string };
+
 const program = new Command();
 
 program
   .name("orbit")
   .description("Orbit CLI — search people from the command line")
-  .version("2.1.0");
+  .version(version);
 
 program
   .command("search")
