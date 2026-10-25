@@ -84,7 +84,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Kit matches its pin
-        run: python3 "$KIT" check-kit
+        env:
+          PRIVATE_REPO: ${{ github.event.repository.private }}
+        run: |
+          # A public repository must not vendor the people map; it uses the RELEASE_PEOPLE_JSON variable.
+          if [ "$PRIVATE_REPO" = true ]; then python3 "$KIT" check-kit; else python3 "$KIT" check-kit --public; fi
       - name: Plan the version
         id: plan
         env:
@@ -302,6 +306,7 @@ jobs:
       - name: Slack ping to the author
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE_PEOPLE_JSON: ${{ vars.RELEASE_PEOPLE_JSON }}
           GITHUB_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 "$KIT" notify --repo-slug "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" --run-url "$RUN_URL"
